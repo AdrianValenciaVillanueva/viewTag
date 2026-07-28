@@ -28,6 +28,10 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         
         with torch.no_grad():
             image_features = self.model.get_image_features(**inputs)
+
+            # Si devuelve un contenedor en lugar del Tensor directo:
+            if not isinstance(image_features, torch.Tensor):
+                image_features = getattr(image_features, "pooler_output", getattr(image_features, "text_embeds", image_features[0]))
             #normalizamos el vector
             image_features = image_features/image_features.norm(dim=1, keepdim=True)
 
@@ -41,6 +45,9 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         
         with torch.no_grad():
             text_features = self.model.get_text_features(**inputs)
+            # Si devuelve un contenedor en lugar del Tensor directo:
+            if not isinstance(text_features, torch.Tensor):
+                text_features = getattr(text_features, "pooler_output", getattr(text_features, "text_embeds", text_features[0]))
             #normalizamos el vector
             text_features = text_features/text_features.norm(dim=1, keepdim=True)
 
