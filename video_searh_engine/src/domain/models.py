@@ -7,12 +7,12 @@ from typing import List, Optional
 class Frame:
     frame_id: str
     timestamp_seconds:float
-    image_bite: float
-    path: Optional[str]
+    image_bite: bytes
+    path: Optional[str] = None
 
 #class para retorno de resultado
 @dataclass
-class Search_Result:
+class SearchResult:
     frame_id: str
     video_name: str
     timestamp_seconds: float
