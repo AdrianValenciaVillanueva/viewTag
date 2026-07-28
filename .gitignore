@@ -1,1 +1,21 @@
 create.py
+
+# Entorno virtual
+.venv/
+venv/
+ENV/
+
+# Archivos temporales de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos de video pesados de prueba (opcional)
+*.mp4
+*.avi
+*.mov
+
+# IDEs
+.vscode/
+.idea/
+.env
