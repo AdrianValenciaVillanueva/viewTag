@@ -17,13 +17,13 @@ def dot_product(vec1:List[float], vec2: List[float]) -> float:
 
 def main():
 
-    VIDEO_PATH = "test.mp4"
+    VIDEO_PATH = "video_searh_engine/test.mp4"
 
-    SEARCH_QUERY = "gato sentado"
+    SEARCH_QUERY = "rock"
 
     #inicializar componentes
     print("cargando componentes\n")
-    extractor = DecordFrameExtractor(fps_sample_rate = 1)
+    extractor = DecordFrameExtractor(fps_sample_rate = .5)
     embedder = SigLIPEmbedder()
     print("componentes listos\n")
 
@@ -51,7 +51,7 @@ def main():
 
     for frame in frames:
         vector = embedder.embed_image(frame.image_bite)
-        frame_embedding.append(frame, vector)
+        frame_embedding.append((frame, vector))
 
     ia_time = time.time() - start_time
     print(f"vectore generados en: {ia_time:.2f} segundos")
@@ -63,14 +63,14 @@ def main():
     results = []
     for frame, img_vector in frame_embedding:
         score = dot_product(img_vector, query_vector)
-        results.append(frame, score)
+        results.append((frame, score))
 
     results.sort(key=lambda x: x[1], reverse=True)
 
     print("mostrando los mejores 3 resultados")
 
     for rank, (frame, score) in enumerate(results[:3], start=1):
-        percentage = round(score * 100, 2)
+        percentage = round(max(0.0, score) * 100, 2)
         print(f" top {rank} segundo: {frame.timestamp_seconds} coincidencia: {percentage}% score {score:.4f}")
 
 
