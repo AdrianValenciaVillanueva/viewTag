@@ -4,7 +4,7 @@ from typing import List
 from decord import VideoReader, cpu
 from PIL import Image
 
-from src.domain.models import Frame
+from src.domain.models import Frame #video_searh_engine\src\domain\models.py
 from src.domain.interfaces.extractor import FrameExtractorInterface
 
 

@@ -21,7 +21,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
     #check embeddings
     def embed_image(self, image_bytes:bytes) -> List[float]:
         """convierte los bytes de una imagen en una lista de numeros embed"""
-        image = Image.open(io.BytesIO(image_bytes))
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
         #procesar la imagen 
         #pasamos la imagen a tensor con torch
@@ -34,7 +34,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
             #check
             # Si devuelve un contenedor en lugar del Tensor directo:
             if not isinstance(image_features, torch.Tensor):
-                image_features = getattr(image_features, "pooler_output", getattr(image_features, "text_embeds", image_features[0]))
+                image_features = getattr(image_features, "pooler_output", getattr(image_features, "image_embeds", image_features[0]))
             #normalizamos el vector
             image_features = image_features/image_features.norm(dim=1, keepdim=True)
 
@@ -44,7 +44,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
     def embed_text(self, text:str) -> List[float]:
         """convierte un texto en una lista de numeros embed"""
         #procesar el texto
-        inputs = self.processor(text=text, return_tensors="pt", padding=True).to(self.device)
+        inputs = self.processor(text=text, return_tensors="pt", padding=True, truncation=True).to(self.device)
         
         with torch.no_grad():
             #check
