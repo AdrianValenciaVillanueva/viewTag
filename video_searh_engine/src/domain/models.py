@@ -7,7 +7,7 @@ from typing import List, Optional
 class Frame:
     frame_id: str
     timestamp_seconds:float
-    image_bite: bytes
+    image_bytes: bytes
     path: Optional[str] = None
 
 #class para retorno de resultado

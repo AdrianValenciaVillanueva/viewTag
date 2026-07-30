@@ -50,7 +50,7 @@ def main():
     frame_embedding = []
 
     for frame in frames:
-        vector = embedder.embed_image(frame.image_bite)
+        vector = embedder.embed_image(frame.image_bytes)
         frame_embedding.append((frame, vector))
 
     ia_time = time.time() - start_time

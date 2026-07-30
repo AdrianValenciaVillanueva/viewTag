@@ -1,2 +1,4 @@
-# Test specific dependencies
-# Example: pytest
+pillow
+torch
+decord
+
