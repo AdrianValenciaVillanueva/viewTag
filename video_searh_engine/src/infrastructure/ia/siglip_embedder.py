@@ -44,7 +44,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
     def embed_text(self, text:str) -> List[float]:
         """convierte un texto en una lista de numeros embed"""
         #procesar el texto
-        inputs = self.processor(text=text, return_tensors="pt", padding=True, truncation=True).to(self.device)
+        inputs = self.processor(text=[text], return_tensors="pt", padding=True, truncation=True).to(self.device)
         
         with torch.no_grad():
             #check
