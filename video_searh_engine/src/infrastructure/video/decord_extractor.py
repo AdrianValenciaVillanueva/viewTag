@@ -43,15 +43,15 @@ class DecordFrameExtractor(FrameExtractorInterface):
             timestamp = idx / native_fps
 
             image = Image.fromarray(frame_arr)
-            buffer = io.BytesIO()
-            image.save(buffer, format="JPEG")
-            image_bytes = buffer.getvalue()
+            # buffer = io.BytesIO()
+            # image.save(buffer, format="JPEG")
+            # image_bytes = buffer.getvalue()
 
             # Creación de la entidad Frame
             frame_entity = Frame(
                 frame_id=f"frame_{idx}",
                 timestamp_seconds=round(timestamp, 2),
-                image_bytes=image_bytes
+                image_bytes=image
             )
 
             extracted_frames.append(frame_entity)
