@@ -2,7 +2,7 @@ import io
 import torch 
 from  typing import List
 from PIL import Image
-from transformers import AutoProcessor, AutoModel
+from transformers import AutoProcessor, SiglipModel
 
 from src.domain.interfaces.embedder import VectorEmbedderInterface
 
@@ -16,7 +16,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
 
         #cargar modelador de imagenes y un modelo preentrenado
         self.processor = AutoProcessor.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name).to(self.device)
+        self.model = SiglipModel.from_pretrained(model_name).to(self.device)
 
     #check embeddings
     def embed_image(self, image_bytes:bytes) -> List[float]:
@@ -27,7 +27,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         #pasamos la imagen a tensor con torch
         inputs = self.processor(images=image, return_tensors="pt").to(self.device)
         
-        with torch.no_grad():
+        with torch.inference_mode():
             #check
             image_features = self.model.get_image_features(**inputs)
 
@@ -46,7 +46,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         #procesar el texto
         inputs = self.processor(text=[text], return_tensors="pt", padding=True, truncation=True).to(self.device)
         
-        with torch.no_grad():
+        with torch.inference_mode():
             #check
             text_features = self.model.get_text_features(**inputs)
             # Si devuelve un contenedor en lugar del Tensor directo:
@@ -57,4 +57,4 @@ class SigLIPEmbedder(VectorEmbedderInterface):
             text_features = text_features/text_features.norm(dim=1, keepdim=True)
 
             #devolvemos el vector
-            return text_features.squeeze().cpu().tolist()
+            return text_features.squeeze(0).cpu().tolist()
