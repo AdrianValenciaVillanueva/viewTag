@@ -38,6 +38,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
         extracted_frames: List[Frame] = []
 
         # 4. Pasar los datos al modelo Frame
+        #check to avoid immediate compression to jpeg
         for idx, frame_arr in zip(frame_indices, batch_frames):
             timestamp = idx / native_fps
 

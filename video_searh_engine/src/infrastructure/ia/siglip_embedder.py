@@ -18,7 +18,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.model = SiglipModel.from_pretrained(model_name).to(self.device)
 
-    #check embeddings
+    #check to batch processing
     def embed_image(self, image_bytes:bytes) -> List[float]:
         """convierte los bytes de una imagen en una lista de numeros embed"""
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
