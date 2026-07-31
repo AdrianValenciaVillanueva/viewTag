@@ -6,14 +6,22 @@ from src.infrastructure.video.decord_extractor import DecordFrameExtractor
 
 
 
-def dot_product(vec1:List[float], vec2: List[float]) -> float:
+def dot_product(vec1: List[float],vec2: List[float]) -> float:
     """
     calcula el producto escalar entre 2 vectores
     SigLIPEmbedder entrega los vectores normalizador
     el producto escalar es la similitud de coseno
     """
-    return sum(a * b for a, b in zip(vec1, vec2))
+    if len(vec1) != len(vec2):
+        raise ValueError(
+            f"Vector dimensions do not match: "
+            f"{len(vec1)} != {len(vec2)}"
+        )
 
+    return sum(
+        a * b
+        for a, b in zip(vec1, vec2)
+    )
 
 
 def main():
