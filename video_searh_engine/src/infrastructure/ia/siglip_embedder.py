@@ -19,9 +19,9 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         self.model = SiglipModel.from_pretrained(model_name).to(self.device)
 
     #check to batch processing
-    def embed_image(self, image_bytes:bytes) -> List[float]:
+    def embed_image(self, image_bytes:Image.Image) -> List[float]:
         """convierte los bytes de una imagen en una lista de numeros embed"""
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        image = image_bytes
 
         #procesar la imagen 
         #pasamos la imagen a tensor con torch
