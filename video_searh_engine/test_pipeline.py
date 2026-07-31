@@ -1,8 +1,9 @@
 import time
 from typing import List
 
-from src.infrastructure.video.decord_extractor import DecordFrameExtractor
 from src.infrastructure.ia.siglip_embedder import SigLIPEmbedder
+from src.infrastructure.video.decord_extractor import DecordFrameExtractor
+
 
 
 def dot_product(vec1:List[float], vec2: List[float]) -> float:
@@ -19,11 +20,11 @@ def main():
 
     VIDEO_PATH = "video_searh_engine/test.mp4"
 
-    SEARCH_QUERY = "rock"
+    SEARCH_QUERY = "code"
 
     #inicializar componentes
     print("cargando componentes\n")
-    extractor = DecordFrameExtractor(fps_sample_rate = .5)
+    extractor = DecordFrameExtractor(fps_sample_rate = 1)
     embedder = SigLIPEmbedder()
     print("componentes listos\n")
 
@@ -70,8 +71,7 @@ def main():
     print("mostrando los mejores 3 resultados")
 
     for rank, (frame, score) in enumerate(results[:3], start=1):
-        percentage = round(max(0.0, score) * 100, 2)
-        print(f" top {rank} segundo: {frame.timestamp_seconds} coincidencia: {percentage}% score {score:.4f}")
+        print(f" top {rank} segundo: {frame.timestamp_seconds} score {score:.4f}")
 
 
 
