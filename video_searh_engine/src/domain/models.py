@@ -8,7 +8,7 @@ from PIL import Image
 class Frame:
     frame_id: str
     timestamp_seconds:float
-    image_bytes: Image.Image #bytes
+    image: Image.Image #bytes
     path: Optional[str] = None
 
 #class para retorno de resultado
