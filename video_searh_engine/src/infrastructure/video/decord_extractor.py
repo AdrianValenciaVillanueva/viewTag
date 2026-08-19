@@ -51,7 +51,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
             frame_entity = Frame(
                 frame_id=f"frame_{idx}",
                 timestamp_seconds=round(timestamp, 2),
-                image_bytes=image
+                image=image
             )
 
             extracted_frames.append(frame_entity)
