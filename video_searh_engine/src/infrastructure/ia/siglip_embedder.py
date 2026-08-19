@@ -3,6 +3,7 @@ import torch
 from  typing import List
 from PIL import Image
 from transformers import AutoProcessor, SiglipModel
+from transformers.image_utils import load_image
 
 from src.domain.interfaces.embedder import VectorEmbedderInterface
 
@@ -16,7 +17,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
 
         #cargar modelador de imagenes y un modelo preentrenado
         self.processor = AutoProcessor.from_pretrained(model_name)
-        self.model = SiglipModel.from_pretrained(model_name).to(self.device)
+        self.model = SiglipModel.from_pretrained(model_name).to(self.device).eval()
 
     #check to batch processing
     def embed_image(self, image:Image.Image) -> List[float]:
@@ -30,6 +31,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         with torch.inference_mode():
             #check
             image_features = self.model.get_image_features(**inputs)
+            print(image_features.shape)
 
             #check
             # Si devuelve un contenedor en lugar del Tensor directo:
