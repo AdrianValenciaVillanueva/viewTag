@@ -20,13 +20,11 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         self.model = SiglipModel.from_pretrained(model_name).to(self.device).eval()
 
     #check to batch processing
-    def embed_image(self, image:Image.Image) -> List[float]:
+    def embed_image(self, images: List[Image.Image]) -> List[float]:
         """convierte los bytes de una imagen en una lista de numeros embed"""
-        image = image
-
-        #procesar la imagen 
-        #pasamos la imagen a tensor con torch
-        inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+        #procesar por lote de imagenes en simultaneo
+        #pasamos la lista de imagenes
+        inputs = self.processor(images=images, return_tensors="pt").to(self.device)
         
         with torch.inference_mode():
             #check
@@ -36,17 +34,26 @@ class SigLIPEmbedder(VectorEmbedderInterface):
             #check
             # Si devuelve un contenedor en lugar del Tensor directo:
             if not isinstance(image_features, torch.Tensor):
-                image_features = getattr(image_features, "pooler_output", getattr(image_features, "image_embeds", image_features[0]))
-            #normalizamos el vector
-            image_features = image_features/image_features.norm(dim=1, keepdim=True)
+                image_features = getattr(
+                    image_features, 
+                    "pooler_output", 
+                    getattr(image_features, "image_embeds", image_features[0])
+                )
 
+            #normalizamos el vector
+            image_features = image_features / image_features.norm(dim=1, keepdim=True)
             #devolvemos el vector
-            return image_features.squeeze().cpu().tolist()
+            return image_features.cpu().tolist()
         
     def embed_text(self, text:str) -> List[float]:
         """convierte un texto en una lista de numeros embed"""
         #procesar el texto
-        inputs = self.processor(text=[text], return_tensors="pt", padding=True, truncation=True).to(self.device)
+        inputs = self.processor(
+            text=[text],
+            return_tensors="pt",
+            padding=True, 
+            truncation=True
+        ).to(self.device)
         
         with torch.inference_mode():
             #check
@@ -54,7 +61,11 @@ class SigLIPEmbedder(VectorEmbedderInterface):
             # Si devuelve un contenedor en lugar del Tensor directo:
             #check
             if not isinstance(text_features, torch.Tensor):
-                text_features = getattr(text_features, "pooler_output", getattr(text_features, "text_embeds", text_features[0]))
+                text_features = getattr(
+                    text_features,
+                    "pooler_output",
+                    getattr(text_features, "text_embeds", text_features[0])
+                )
             #normalizamos el vector
             text_features = text_features/text_features.norm(dim=1, keepdim=True)
 
