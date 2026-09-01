@@ -20,9 +20,9 @@ class QdrantVectorRepository(VectorRepositoryInterface):
 
     def _ensure_collection(self, vector_size: int) -> None:
         """Crea la colección local si aún no existe."""
-        if not self.client.collection_exists(self.collection_name):
+        if not self.client.collection_exists(self.collection):
             self.client.create_collection(
-                collection_name=self.collection_name,
+                collection_name=self.collection,
                 vectors_config=VectorParams(
                     size=vector_size,
                     distance=Distance.COSINE
@@ -39,9 +39,4 @@ class QdrantVectorRepository(VectorRepositoryInterface):
         return None
         
 
-
-if __name__ == "__main__":
-    # Ejemplo de uso
-    repo = QdrantVectorRepository(storage_path="./qdrant_data", collection_name="video_frames", vector_size=768)
-    repo._ensure_collection(vector_size=768)
 
