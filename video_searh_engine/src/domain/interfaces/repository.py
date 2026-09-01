@@ -1,7 +1,7 @@
 # Define abstract interfaces for data persistence
 from abc import ABC, abstractmethod
 from typing import List
-from video_searh_engine.src.domain.models import SearchResult
+from src.domain.models import SearchResult
 
 class VectorRepositoryInterface(ABC):
 
