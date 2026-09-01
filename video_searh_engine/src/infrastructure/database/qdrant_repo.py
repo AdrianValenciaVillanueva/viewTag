@@ -32,8 +32,27 @@ class QdrantVectorRepository(VectorRepositoryInterface):
         return None
     def save_vectors(self,video_name: str,frame_ids: List[str],timestamps: List[float],vectors: List[float]):
 
-        return None
+        points = []
 
+        for f_id, ts, vec, in zip(frame_ids, timestamps, vectors):
+            # Genera un ID único para cada punto
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_name}_{f_id}")) 
+
+            # Crea el payload con los datos del fotograma
+            payload = {
+                "frame_id": f_id,
+                "video_name": video_name,
+                "timestamp_seconds": ts
+            }
+            # Agrega el punto a la lista de puntos
+            points.append(PointStruct(
+                id=point_id,
+                vector=vec,
+                payload=payload
+            ))
+            
+
+        return None
     def search_similar(self,query_vector: List[float],limit: int = 5) -> List[SearchResult]:
 
         return None
