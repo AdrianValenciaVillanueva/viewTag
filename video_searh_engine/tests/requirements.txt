@@ -4,3 +4,4 @@ decord
 transformers
 SentencePiece
 protobuf
+qdrant_client
