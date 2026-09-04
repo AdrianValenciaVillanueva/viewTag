@@ -2,4 +2,5 @@ pillow
 torch
 decord
 transformers
-
+SentencePiece
+protobuf
