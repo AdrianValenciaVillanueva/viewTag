@@ -11,7 +11,7 @@ class VectorRepositoryInterface(ABC):
         video_name: str,
         frame_ids: List[str],
         timestamps: List[float],
-        vectors: List[float]
+        vectors: List[List[float]]
     ) -> None:
         """guarda un conjunto de vectores y sus metadatos en la base de datos"""
         pass
