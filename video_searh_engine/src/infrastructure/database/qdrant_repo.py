@@ -15,9 +15,9 @@ class QdrantVectorRepository(VectorRepositoryInterface):
         #inicializar la base de datos local
         self.client = QdrantClient(path= storage_path)
         self.collection = collection_name
-        self.ensure_collection = vector_size 
+        self._ensure_collection(vector_size)
 
-
+    # Asegurar que la colección exista
     def _ensure_collection(self, vector_size: int) -> None:
         """Crea la colección local si aún no existe."""
         if not self.client.collection_exists(self.collection):
@@ -29,8 +29,8 @@ class QdrantVectorRepository(VectorRepositoryInterface):
                 )
             )
 
-        return None
-    def save_vectors(self,video_name: str,frame_ids: List[str],timestamps: List[float],vectors: List[float]):
+    # Guardar vectores en la base de datos
+    def save_vectors(self,video_name: str,frame_ids: List[str],timestamps: List[float],vectors: List[List[float]]) -> None:
 
         points = []
 
@@ -50,12 +50,29 @@ class QdrantVectorRepository(VectorRepositoryInterface):
                 vector=vec,
                 payload=payload
             ))
-            
 
-        return None
+        self.client.upsert(
+            collection_name=self.collection,
+            points=points
+        )
+
+    # Buscar vectores similares
     def search_similar(self,query_vector: List[float],limit: int = 5) -> List[SearchResult]:
 
-        return None
-        
-
-
+        results = self.client.query_points(
+            collection_name=self.collection,
+            query_vector=query_vector,
+            limit=limit
+        ).points
+    
+        search_results: List[SearchResult] = []
+        for res in results:
+            payload = res.payload or {}
+            search_results.append(
+                SearchResult(
+                frame_id=payload.get("frame_id", ""),
+                video_name=payload.get("video_name", ""),
+                timestamp_seconds=payload.get("timestamp_seconds", 0.0),
+                score=res.score
+            ))
+        return search_results
