@@ -1,7 +1,7 @@
 # Define abstract interfaces for data persistence
 from abc import ABC, abstractmethod
 from typing import List
-from src.domain.models import SearchResult
+from domain.models import SearchResult
 
 class VectorRepositoryInterface(ABC):
 

@@ -1,7 +1,7 @@
 # Define abstract interfaces for data extraction
 from abc import ABC, abstractmethod
 from typing import List
-from src.domain.models import Frame
+from domain.models import Frame
 
 class FrameExtractorInterface(ABC):
     #contrato a cumplir

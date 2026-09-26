@@ -1,11 +1,10 @@
-import io
 import torch 
 from  typing import List
 from PIL import Image
 from transformers import AutoProcessor, SiglipModel
-from transformers.image_utils import load_image
 
-from src.domain.interfaces.embedder import VectorEmbedderInterface
+
+from domain.interfaces.embedder import VectorEmbedderInterface
 
 class SigLIPEmbedder(VectorEmbedderInterface):
     """
@@ -20,7 +19,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         self.model = SiglipModel.from_pretrained(model_name).to(self.device).eval()
       
     #check to batch processing
-    def embed_image(self, images: List[Image.Image]) -> List[float]:
+    def embed_image(self, images: List[Image.Image]) -> List[list[float]]:
         """convierte los bytes de una imagen en una lista de numeros embed"""
         #procesar por lote de imagenes en simultaneo
         #pasamos la lista de imagenes

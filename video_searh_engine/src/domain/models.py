@@ -1,5 +1,6 @@
 # Define data models here
 from dataclasses import dataclass
+import io
 from typing import List, Optional
 from PIL import Image
 
@@ -7,9 +8,13 @@ from PIL import Image
 @dataclass
 class Frame:
     frame_id: str
-    timestamp_seconds:float
-    image: Image.Image #bytes
+    timestamp_seconds: float
+    image_bytes: bytes  # JPEG comprimido
     path: Optional[str] = None
+    
+    @property
+    def image(self) -> Image.Image:  # lazy load para compatibilidad
+        return Image.open(io.BytesIO(self.image_bytes))
 
 #class para retorno de resultado
 @dataclass

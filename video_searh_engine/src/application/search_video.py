@@ -1,7 +1,7 @@
 # Application service for searching video
 # Example:
-# from src.domain.interfaces.embedded import Embedder
-# from src.domain.interfaces.repository import VideoRepository
+# from domain.interfaces.embedded import Embedder
+# from domain.interfaces.repository import VideoRepository
 # class SearchVideoService:
 #     def __init__(self, embedder: Embedder, repository: VideoRepository):
 #         self.embedder = embedder

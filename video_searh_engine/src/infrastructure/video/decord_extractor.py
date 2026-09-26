@@ -4,8 +4,8 @@ from typing import List
 from decord import VideoReader, cpu
 from PIL import Image
 
-from src.domain.models import Frame #video_searh_engine\src\domain\models.py
-from src.domain.interfaces.extractor import FrameExtractorInterface
+from domain.models import Frame #video_searh_engine\src\domain\models.py
+from domain.interfaces.extractor import FrameExtractorInterface
 
 
 class DecordFrameExtractor(FrameExtractorInterface):
@@ -51,7 +51,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
             frame_entity = Frame(
                 frame_id=f"frame_{idx}",
                 timestamp_seconds=round(timestamp, 2),
-                image=image
+                image_bytes=image.tobytes(),  # Store raw bytes instead of JPEG
             )
 
             extracted_frames.append(frame_entity)

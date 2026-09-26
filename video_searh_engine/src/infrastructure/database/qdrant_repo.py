@@ -5,8 +5,8 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
 #modelo e interfaz
-from src.domain.interfaces.repository import VectorRepositoryInterface
-from src.domain.models import SearchResult
+from domain.interfaces.repository import VectorRepositoryInterface
+from domain.models import SearchResult
 
 class QdrantVectorRepository(VectorRepositoryInterface):
     """implementacion qdrant en local"""
