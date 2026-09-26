@@ -57,9 +57,10 @@ def main():
     start_time = time.time()
 
     frame_embedding = []
+    images = [frame.image for frame in frames]
 
     for frame in frames:
-        vector = embedder.embed_image(frame.image_bytes)
+        vector = embedder.embed_image(images=images)
         frame_embedding.append((frame, vector))
 
     ia_time = time.time() - start_time
