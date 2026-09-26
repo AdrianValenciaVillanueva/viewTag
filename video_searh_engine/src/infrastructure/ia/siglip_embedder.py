@@ -18,7 +18,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         #cargar modelador de imagenes y un modelo preentrenado
         self.processor = AutoProcessor.from_pretrained(model_name)
         self.model = SiglipModel.from_pretrained(model_name).to(self.device).eval()
-
+      
     #check to batch processing
     def embed_image(self, images: List[Image.Image]) -> List[float]:
         """convierte los bytes de una imagen en una lista de numeros embed"""
@@ -29,7 +29,6 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         with torch.inference_mode():
             #check
             image_features = self.model.get_image_features(**inputs)
-            print(image_features.shape)
 
             #check
             # Si devuelve un contenedor en lugar del Tensor directo:
@@ -39,6 +38,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
                     "pooler_output", 
                     getattr(image_features, "image_embeds", image_features[0])
                 )
+            print(image_features.shape)
 
             #normalizamos el vector
             image_features = image_features / image_features.norm(dim=1, keepdim=True)
