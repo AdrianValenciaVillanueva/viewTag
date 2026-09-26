@@ -59,9 +59,9 @@ def main():
     frame_embedding = []
     images = [frame.image for frame in frames]
 
-    for frame in frames:
-        vector = embedder.embed_image(images=images)
-        frame_embedding.append((frame, vector))
+    
+    frame_vectors = embedder.embed_image(images=images)
+    frame_embedding = list(zip(frames, frame_vectors))
 
     ia_time = time.time() - start_time
     print(f"vectore generados en: {ia_time:.2f} segundos")
