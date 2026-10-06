@@ -38,20 +38,19 @@ class DecordFrameExtractor(FrameExtractorInterface):
         extracted_frames: List[Frame] = []
 
         # 4. Pasar los datos al modelo Frame
-        #check to avoid immediate compression to jpeg
         for idx, frame_arr in zip(frame_indices, batch_frames):
             timestamp = idx / native_fps
 
             image = Image.fromarray(frame_arr)
-            # buffer = io.BytesIO()
-            # image.save(buffer, format="JPEG")
-            # image_bytes = buffer.getvalue()
+            buffer = io.BytesIO()
+            image.save(buffer, format="JPEG", quality=95)
+            image_bytes = buffer.getvalue()
 
             # Creación de la entidad Frame
             frame_entity = Frame(
                 frame_id=f"frame_{idx}",
                 timestamp_seconds=round(timestamp, 2),
-                image_bytes=image.tobytes(),  # Store raw bytes instead of JPEG
+                image_bytes=image_bytes,  # JPEG comprimido
             )
 
             extracted_frames.append(frame_entity)

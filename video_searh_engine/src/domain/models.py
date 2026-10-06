@@ -14,7 +14,9 @@ class Frame:
     
     @property
     def image(self) -> Image.Image:  # lazy load para compatibilidad
-        return Image.open(io.BytesIO(self.image_bytes))
+        img = Image.open(io.BytesIO(self.image_bytes))
+        img.load()
+        return img
 
 #class para retorno de resultado
 @dataclass
