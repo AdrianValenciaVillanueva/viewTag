@@ -31,10 +31,19 @@ class QdrantVectorRepository(VectorRepositoryInterface):
 
     # Guardar vectores en la base de datos
     def save_vectors(self,video_name: str,frame_ids: List[str],timestamps: List[float],vectors: List[List[float]]) -> None:
+        if not (len(frame_ids) == len(timestamps) == len(vectors)):
+            raise ValueError(
+                f"Longitudes no coinciden: "
+                f"frame_ids={len(frame_ids)}, "
+                f"timestamps={len(timestamps)}, "
+                f"vectors={len(vectors)}"
+            )
+        if not vectors:
+            return
 
         points = []
 
-        for f_id, ts, vec, in zip(frame_ids, timestamps, vectors):
+        for f_id, ts, vec in zip(frame_ids, timestamps, vectors):
             # Genera un ID único para cada punto
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_name}_{f_id}")) 
 
@@ -51,18 +60,25 @@ class QdrantVectorRepository(VectorRepositoryInterface):
                 payload=payload
             ))
 
-        self.client.upsert(
-            collection_name=self.collection,
-            points=points
-        )
+        batch_size = 256
+        for i in range(0, len(points), batch_size):
+            self.client.upsert(
+                collection_name=self.collection,
+                points=points[i : i + batch_size],
+                wait=True,
+            )
 
     # Buscar vectores similares
     def search_similar(self,query_vector: List[float],limit: int = 5) -> List[SearchResult]:
+        if not query_vector:
+            raise ValueError("query_vector no puede estar vacío")
+        if limit < 1:
+            raise ValueError("limit debe ser >= 1")
 
         results = self.client.query_points(
             collection_name=self.collection,
-            query_vector=query_vector,
-            limit=limit
+            query=query_vector,
+            limit=limit,
         ).points
     
         search_results: List[SearchResult] = []
@@ -73,6 +89,6 @@ class QdrantVectorRepository(VectorRepositoryInterface):
                 frame_id=payload.get("frame_id", ""),
                 video_name=payload.get("video_name", ""),
                 timestamp_seconds=payload.get("timestamp_seconds", 0.0),
-                score=res.score
+                score=float(res.score) if res.score is not None else 0.0,
             ))
         return search_results
