@@ -6,6 +6,7 @@ transformers
 SentencePiece
 protobuf
 qdrant_client
+fastapi
 
 # Testing dependencies
 pytest>=7.4.0

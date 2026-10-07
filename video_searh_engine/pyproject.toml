@@ -18,6 +18,8 @@ dependencies = [
     "qdrant-client>=1.9",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
+    "fastapi>=0.142.2",
+    "uvicorn>=0.54.0",
 ]
 
 [project.optional-dependencies]
