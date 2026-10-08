@@ -1,5 +1,5 @@
 import pytest
-import pytest_asyncio
+
 from domain.models import Frame, SearchResult
 
 
@@ -28,6 +28,7 @@ class TestFixtures:
 
     def test_mock_image_batch(self, mock_image_batch):
         from PIL import Image
+
         assert len(mock_image_batch) == 3
         for img in mock_image_batch:
             assert isinstance(img, Image.Image)
@@ -60,7 +61,6 @@ class TestAsyncFixtures:
         query_vec = await mock_siglip_embedder.embed_text("test query")
         assert len(query_vec) == 768
 
-
     @pytest.mark.asyncio
     async def test_mock_frame_extractor(self, mock_frame_extractor, sample_frames):
         """Test async frame extractor mock."""
@@ -71,10 +71,10 @@ class TestAsyncFixtures:
     @pytest.mark.asyncio
     async def test_mock_qdrant_repo(self, mock_qdrant_repo, sample_search_results):
         """Test async Qdrant repo mock."""
-        await mock_qdrant_repo.save_vectors("test", ["f1"], [0.0], [[0.1]*768])
+        await mock_qdrant_repo.save_vectors("test", ["f1"], [0.0], [[0.1] * 768])
         mock_qdrant_repo.save_vectors.assert_called_once()
 
-        results = await mock_qdrant_repo.search_similar([0.1]*768)
+        results = await mock_qdrant_repo.search_similar([0.1] * 768)
         assert len(results) == 3
         assert results[0].video_name == "test_video"
 
@@ -94,8 +94,8 @@ class TestSyncFixtures:
         assert len(frames) == 3
 
     def test_mock_qdrant_repo_sync(self, mock_qdrant_repo_sync, sample_search_results):
-        mock_qdrant_repo_sync.save_vectors("test", ["f1"], [0.0], [[0.1]*768])
+        mock_qdrant_repo_sync.save_vectors("test", ["f1"], [0.0], [[0.1] * 768])
         mock_qdrant_repo_sync.save_vectors.assert_called_once()
 
-        results = mock_qdrant_repo_sync.search_similar([0.1]*768)
+        results = mock_qdrant_repo_sync.search_similar([0.1] * 768)
         assert len(results) == 3
