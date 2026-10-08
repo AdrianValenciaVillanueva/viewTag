@@ -60,8 +60,6 @@ class TestAsyncFixtures:
         query_vec = await mock_siglip_embedder.embed_text("test query")
         assert len(query_vec) == 768
 
-        single_vec = await mock_siglip_embedder.embed_image_single(None)
-        assert len(single_vec) == 768
 
     @pytest.mark.asyncio
     async def test_mock_frame_extractor(self, mock_frame_extractor, sample_frames):

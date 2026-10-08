@@ -81,7 +81,6 @@ async def mock_siglip_embedder(mock_normalized_vectors, mock_query_vector):
         mock_instance = AsyncMock()
         mock_instance.embed_image = AsyncMock(return_value=mock_normalized_vectors)
         mock_instance.embed_text = AsyncMock(return_value=mock_query_vector)
-        mock_instance.embed_image_single = AsyncMock(return_value=mock_normalized_vectors[0])
         mock_class.return_value = mock_instance
         yield mock_instance
 
@@ -117,7 +116,6 @@ def mock_siglip_embedder_sync(mock_normalized_vectors, mock_query_vector):
         mock_instance = Mock()
         mock_instance.embed_image = Mock(return_value=mock_normalized_vectors)
         mock_instance.embed_text = Mock(return_value=mock_query_vector)
-        mock_instance.embed_image_single = Mock(return_value=mock_normalized_vectors[0])
         mock_class.return_value = mock_instance
         yield mock_instance
 
