@@ -31,6 +31,29 @@ video.mp4
 - Los pesos del modelo se descargan solos de Hugging Face
   (`google/siglip-base-patch16-224`) la primera vez que arrancas.
 
+## Configuración
+
+Toda la configuración se centraliza en `src/config/settings.py` usando **pydantic-settings**.
+Los valores por defecto funcionan *out-of-the-box*; se pueden sobrescribir con variables de entorno
+o un archivo `.env` en `video_searh_engine/`.
+
+```bash
+# Ejemplo: copiar plantilla y editar
+cp video_searh_engine/.env.example video_searh_engine/.env
+```
+
+Variables principales (ver `.env.example` para la lista completa):
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `QDRANT_STORAGE_PATH` | `./qdrant_data` | Directorio donde Qdrant persiste datos |
+| `SIGLIP_MODEL_NAME` | `google/siglip-base-patch16-224` | Modelo HF para embeddings |
+| `FPS_SAMPLE_RATE` | `1.0` | Frames a extraer por segundo |
+| `IMAGE_BATCH_SIZE` | `32` | Lote para embeddings de imágenes |
+| `UPSERT_BATCH_SIZE` | `256` | Lote para upsert en Qdrant |
+| `API_HOST` / `API_PORT` | `0.0.0.0` / `8000` | Host/puerto de la API |
+| `SEARCH_DEFAULT_LIMIT` | `5` | Límite por defecto en `/search` |
+
 ## Instalación
 
 ```bash
@@ -42,6 +65,10 @@ python -m venv ..\..\.venv  # o usa el .venv existente en la raíz
 
 pip install -e .
 pip install -r tests/requirements.txt
+
+# opcional: configurar variables de entorno
+cp .env.example .env
+# editar .env si se desea cambiar rutas, modelo, lotes, etc.
 ```
 
 ## Uso
@@ -89,6 +116,9 @@ Errores: `422` datos mal formados, `400` parámetro inválido,
 
 ```
 video_searh_engine/src/
+├── config/                  # configuración centralizada (pydantic-settings)
+│   ├── __init__.py
+│   └── settings.py          # Settings class + singleton `settings`
 ├── domain/                  # reglas del negocio (no depende de nada externo)
 │   ├── models.py            # Frame (bytes JPEG + decode lazy) y SearchResult
 │   └── interfaces/          # contratos: extractor, embedder, repository
@@ -128,12 +158,11 @@ cd video_searh_engine
 python -m pytest tests -v
 ```
 
-12 tests unitarios con mocks (fixtures, validaciones y servicios).
+30 tests unitarios con mocks (12 fixtures + 18 servicios de aplicación).
 Los scripts `test_pipeline.py` y `test_qdrant.py` son pruebas manuales
 adicionales, no parte de la suite.
 
 ## Pendiente
 
 - Tests de integración reales (video sintético + Qdrant temporal).
-- Configuración por variables de entorno (ruta Qdrant, modelo, fps).
 - Paginación y filtrado por `video_name` en `/search`.
