@@ -3,11 +3,8 @@ from typing import Any, Dict, List
 from PIL import Image
 from transformers import AutoProcessor, SiglipModel
 
-
 from domain.interfaces.embedder import VectorEmbedderInterface
-
-_IMAGE_BATCH_SIZE = 32
-_TEXT_MAX_LENGTH = 64
+from config.settings import settings
 
 
 def _move_to_device(inputs: Any, device: str) -> Any:
@@ -43,25 +40,36 @@ def _output_to_tensor(output: Any, attrs: List[str]) -> torch.Tensor:
 
 class SigLIPEmbedder(VectorEmbedderInterface):
     """
-    Estrategia para crear vectores con SigLIP mediante hugging face
+    Estrategia para crear vectores con SigLIP mediante Hugging Face.
+    Configuración centralizada vía settings; parámetros opcionales para tests.
     """
-    def __init__(self, model_name:str = "google/siglip-base-patch16-224"):
-        #usar gpu
+
+    def __init__(
+        self,
+        model_name: str | None = None,
+        image_batch_size: int | None = None,
+        text_max_length: int | None = None,
+    ):
+        self.model_name = model_name or settings.siglip_model_name
+        self.image_batch_size = image_batch_size or settings.image_batch_size
+        self.text_max_length = text_max_length or settings.text_max_length
+
+        # Usar GPU si está disponible
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        #cargar modelador de imagenes y un modelo preentrenado
-        self.processor = AutoProcessor.from_pretrained(model_name)
-        self.model = SiglipModel.from_pretrained(model_name).to(self.device).eval()
+        # Cargar processor y modelo preentrenado
+        self.processor = AutoProcessor.from_pretrained(self.model_name)
+        self.model = SiglipModel.from_pretrained(self.model_name).to(self.device).eval()
 
     def embed_image(self, images: List[Image.Image]) -> List[List[float]]:
-        """convierte una lista de imagenes en una lista de vectores embed"""
+        """Convierte una lista de imágenes en una lista de vectores embedding normalizados."""
         if not images:
             return []
 
         all_vectors: List[List[float]] = []
         with torch.inference_mode():
-            for i in range(0, len(images), _IMAGE_BATCH_SIZE):
-                chunk = images[i : i + _IMAGE_BATCH_SIZE]
+            for i in range(0, len(images), self.image_batch_size):
+                chunk = images[i : i + self.image_batch_size]
                 inputs = _move_to_device(
                     self.processor(images=chunk, return_tensors="pt"), self.device
                 )
@@ -71,27 +79,25 @@ class SigLIPEmbedder(VectorEmbedderInterface):
                     ["pooler_output", "image_embeds"],
                 )
 
-                #normalizamos el vector
+                # Normalización L2 para similitud de coseno
                 norms = image_features.norm(dim=1, keepdim=True).clamp(min=1e-12)
                 image_features = image_features / norms
-                #devolvemos el vector
                 all_vectors.extend(image_features.cpu().tolist())
 
         return all_vectors
 
-    def embed_text(self, text:str) -> List[float]:
-        """convierte el texto de busqueda en un numero en el mismo espacio vectorial"""
+    def embed_text(self, text: str) -> List[float]:
+        """Convierte el texto de búsqueda en un vector en el mismo espacio vectorial."""
         if not text:
             raise ValueError("text no puede estar vacío")
 
-        #procesar el texto
         inputs = _move_to_device(
             self.processor(
                 text=[text],
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
-                max_length=_TEXT_MAX_LENGTH,
+                max_length=self.text_max_length,
             ),
             self.device,
         )
@@ -101,9 +107,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
                 self.model.get_text_features(**inputs),
                 ["pooler_output", "text_embeds"],
             )
-            #normalizamos el vector
             norms = text_features.norm(dim=1, keepdim=True).clamp(min=1e-12)
             text_features = text_features / norms
 
-            #devolvemos el vector
             return text_features.squeeze(0).cpu().tolist()

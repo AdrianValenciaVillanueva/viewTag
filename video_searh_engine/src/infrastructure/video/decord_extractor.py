@@ -5,12 +5,9 @@ from typing import List
 from decord import VideoReader, cpu
 from PIL import Image
 
-from domain.models import Frame #video_searh_engine\src\domain\models.py
+from domain.models import Frame
 from domain.interfaces.extractor import FrameExtractorInterface
-
-# Número máximo de frames pedidos a Decord en cada llamada a get_batch.
-# Evita cargar el video completo en RAM de una sola vez (OOM).
-_FRAME_BATCH_SIZE = 64
+from config.settings import settings
 
 
 class DecordFrameExtractor(FrameExtractorInterface):
@@ -21,18 +18,24 @@ class DecordFrameExtractor(FrameExtractorInterface):
     step = native_fps / fps_sample_rate, para aproximar los frames
     por segundo pedidos sin decodificar el video completo.
     """
-    def __init__(self, fps_sample_rate: float = 1.0):
+
+    def __init__(
+        self,
+        fps_sample_rate: float | None = None,
+        frame_batch_size: int | None = None,
+    ):
         """
-        :param fps_sample_rate: frames a extraer por segundo
-                                ej:
-                                1.0 = extraer 1 frame por segundo
-                                0.5 = extraer 1 frame cada 2 segundos
+        :param fps_sample_rate: frames a extraer por segundo (default: settings.fps_sample_rate)
+                                ej: 1.0 = 1 frame/seg, 0.5 = 1 frame cada 2 seg
+        :param frame_batch_size: frames por lote en get_batch (default: settings.frame_batch_size)
         """
-        # El valor debe ser positivo: con 0 habría división por cero
-        # y con negativo el 'step' saldría negativo y se ignoraría el parámetro.
-        if fps_sample_rate <= 0:
-            raise ValueError(f"fps_sample_rate debe ser > 0, recibido: {fps_sample_rate}")
-        self.fps_sample_rate = fps_sample_rate
+        self.fps_sample_rate = fps_sample_rate or settings.fps_sample_rate
+        self.frame_batch_size = frame_batch_size or settings.frame_batch_size
+
+        if self.fps_sample_rate <= 0:
+            raise ValueError(f"fps_sample_rate debe ser > 0, recibido: {self.fps_sample_rate}")
+        if self.frame_batch_size <= 0:
+            raise ValueError(f"frame_batch_size debe ser > 0, recibido: {self.frame_batch_size}")
 
     def extract(self, video_path: str) -> List[Frame]:
         # Guardar la ruta ayuda a rastrear de qué video vino cada Frame.
@@ -72,8 +75,8 @@ class DecordFrameExtractor(FrameExtractorInterface):
         # 3. Extraer por lotes para acotar el pico de RAM.
         # get_batch() devuelve un array numpy con todos los frames pedidos,
         # así que pedirlos todos de golpe (600+ frames 1080p) revienta memoria.
-        for start in range(0, len(frame_indices), _FRAME_BATCH_SIZE):
-            chunk_indices = frame_indices[start : start + _FRAME_BATCH_SIZE]
+        for start in range(0, len(frame_indices), self.frame_batch_size):
+            chunk_indices = frame_indices[start : start + self.frame_batch_size]
             batch_frames = reader.get_batch(chunk_indices).asnumpy()
 
             # 4. Convertir cada frame al modelo Frame.

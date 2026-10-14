@@ -4,18 +4,30 @@ from typing import List
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
-#modelo e interfaz
+# modelo e interfaz
 from domain.interfaces.repository import VectorRepositoryInterface
 from domain.models import SearchResult
+from config.settings import settings
+
 
 class QdrantVectorRepository(VectorRepositoryInterface):
-    """implementacion qdrant en local"""
+    """Implementación Qdrant local con configuración centralizada."""
 
-    def __init__(self, storage_path:str = "./qdrant_data",collection_name:str = "video_frames",vector_size:int = 768):
-        #inicializar la base de datos local
-        self.client = QdrantClient(path= storage_path)
-        self.collection = collection_name
-        self._ensure_collection(vector_size)
+    def __init__(
+        self,
+        storage_path: str | None = None,
+        collection_name: str | None = None,
+        vector_size: int | None = None,
+    ):
+        # Usar settings como valores por defecto; permite override en tests
+        self.storage_path = storage_path or settings.qdrant_storage_path
+        self.collection = collection_name or settings.qdrant_collection_name
+        self.vector_size = vector_size or settings.qdrant_vector_size
+        self.upsert_batch_size = settings.upsert_batch_size
+
+        # Inicializar la base de datos local
+        self.client = QdrantClient(path=self.storage_path)
+        self._ensure_collection(self.vector_size)
 
     # Asegurar que la colección exista
     def _ensure_collection(self, vector_size: int) -> None:
@@ -60,11 +72,10 @@ class QdrantVectorRepository(VectorRepositoryInterface):
                 payload=payload
             ))
 
-        batch_size = 256
-        for i in range(0, len(points), batch_size):
+        for i in range(0, len(points), self.upsert_batch_size):
             self.client.upsert(
                 collection_name=self.collection,
-                points=points[i : i + batch_size],
+                points=points[i : i + self.upsert_batch_size],
                 wait=True,
             )
 
