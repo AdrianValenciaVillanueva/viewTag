@@ -12,13 +12,13 @@ class ProcessVideoService:
 
     def execute(self, video_source: str, video_name: Optional[str] = None) -> Dict[str, object]:
         # Logic to extract, embed, and save video data
-        if not video_source:
+        if not video_source or not video_source.strip():
             raise ValueError("video_source cannot be empty")
 
         # Clave estable para Qdrant (uuid5): el basename evita duplicar
         # puntos al reprocesar el mismo video desde otro CWD.
         resolved_name = video_name or os.path.splitext(os.path.basename(video_source))[0]
-        if not resolved_name:
+        if not resolved_name or not resolved_name.strip():
             raise ValueError("video_name no puede estar vacío")
 
         frames = self.extractor.extract(video_source)
