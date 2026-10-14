@@ -1,17 +1,21 @@
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
+from config.settings import settings
 
-#models
+# Models
 class ProcessRequest(BaseModel):
-    video_path: str = Field(min_length = 1)
+    video_path: str = Field(min_length=1)
     video_name: str | None = None
+
 
 class ProcessResponse(BaseModel):
     video_name: str
     frames_processed: int
     embeddings_saved: int
+
 
 class SearchHit(BaseModel):
     frame_id: str
@@ -47,7 +51,11 @@ def process_video(
 @router.get("/search", response_model=list[SearchHit])
 def search_video(
     q: str = Query(min_length=1),
-    limit: int = Query(5, ge=1, le=50),
+    limit: int = Query(
+        default=settings.search_default_limit,
+        ge=settings.search_min_limit,
+        le=settings.search_max_limit,
+    ),
     service: SearchVideoService = Depends(get_search_service),
 ):
     try:

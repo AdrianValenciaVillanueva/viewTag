@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from api.routes import router
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
+from config.settings import settings
 from infrastructure.database.qdrant_repo import QdrantVectorRepository
 from infrastructure.ia.siglip_embedder import SigLIPEmbedder
 from infrastructure.video.decord_extractor import DecordFrameExtractor
@@ -11,10 +12,9 @@ from infrastructure.video.decord_extractor import DecordFrameExtractor
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # los singletons caros se crean una vez al arrancar, no por request:
     embedder = SigLIPEmbedder()
     repository = QdrantVectorRepository()
-    extractor = DecordFrameExtractor(fps_sample_rate=1.0)
+    extractor = DecordFrameExtractor()
     app.state.process = ProcessVideoService(extractor, embedder, repository)
     app.state.search = SearchVideoService(embedder, repository)
     yield
@@ -31,4 +31,10 @@ async def read_root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(
+        "api.main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.api_reload,
+    )
