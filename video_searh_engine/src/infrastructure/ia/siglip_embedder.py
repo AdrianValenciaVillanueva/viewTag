@@ -49,17 +49,24 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         model_name: str | None = None,
         image_batch_size: int | None = None,
         text_max_length: int | None = None,
+        model_path: str | None = None,
     ):
         self.model_name = model_name or settings.siglip_model_name
         self.image_batch_size = image_batch_size or settings.image_batch_size
         self.text_max_length = text_max_length or settings.text_max_length
-
+        # Usar model_path pasado por parámetro, o el de settings si no está vacío
+        self.model_path = model_path or (settings.siglip_model_path if settings.siglip_model_path else None)
+        
         # Usar GPU si está disponible
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Cargar processor y modelo preentrenado
-        self.processor = AutoProcessor.from_pretrained(self.model_name)
-        self.model = SiglipModel.from_pretrained(self.model_name).to(self.device).eval()
+        if self.model_path:
+            self.processor = AutoProcessor.from_pretrained(self.model_path, local_files_only=True)
+            self.model = SiglipModel.from_pretrained(self.model_path, local_files_only=True).to(self.device).eval()
+        else:
+            self.processor = AutoProcessor.from_pretrained(self.model_name)
+            self.model = SiglipModel.from_pretrained(self.model_name).to(self.device).eval()
 
     def embed_image(self, images: List[Image.Image]) -> List[List[float]]:
         """Convierte una lista de imágenes en una lista de vectores embedding normalizados."""

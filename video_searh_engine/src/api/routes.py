@@ -27,6 +27,11 @@ class SearchHit(BaseModel):
 router = APIRouter()
 
 
+@router.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
 def get_process_service(request: Request) -> ProcessVideoService:
     return request.app.state.process
 

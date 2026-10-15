@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     
     # Model configuration
     siglip_model_name: str = "google/siglip-base-patch16-224"
+    siglip_model_path: str = ""  # Ruta local al modelo (opcional, para uso offline)
     
     # Video processing configuration
     fps_sample_rate: float = 1.0  # frames per second to extract
