@@ -7,6 +7,7 @@ from config.settings import settings
 from infrastructure.database.qdrant_repo import QdrantVectorRepository
 from infrastructure.ia.siglip_embedder import SigLIPEmbedder
 from infrastructure.video.decord_extractor import DecordFrameExtractor
+from domain.interfaces.repository import SearchPage
 
 
 @pytest.mark.integration
@@ -34,12 +35,16 @@ class TestFullPipeline:
         assert result["embeddings_saved"] == 3
 
         # Search for "red" - should match frames from first second (red frames)
-        results = search_service.execute("red", limit=3)
+        page = search_service.execute("red", limit=3)
 
-        assert len(results) > 0
-        assert all(r.video_name == "test_video" for r in results)
+        assert isinstance(page, SearchPage)
+        assert len(page.results) > 0
+        assert all(r.video_name == "test_video" for r in page.results)
         # First second frames (0-1s) are red, should have highest scores
-        assert results[0].timestamp_seconds < 1.5  # Within first ~1.5 seconds
+        assert page.results[0].timestamp_seconds < 1.5  # Within first ~1.5 seconds
+        assert page.total >= len(page.results)
+        assert page.limit == 3
+        assert page.offset == 0
 
     def test_search_returns_empty_for_unrelated_query(
         self, qdrant_test_repo, synthetic_video_path
@@ -55,11 +60,11 @@ class TestFullPipeline:
         process_service.execute(synthetic_video_path, "test_video_2")
 
         # Search for something completely unrelated
-        results = search_service.execute("unrelated abstract concept xyz", limit=5)
+        page = search_service.execute("unrelated abstract concept xyz", limit=5)
 
-        assert isinstance(results, list)
-        if results:
-            assert all(r.score < 0.5 for r in results)  # Low similarity
+        assert isinstance(page, SearchPage)
+        if page.results:
+            assert all(r.score < 0.5 for r in page.results)  # Low similarity
 
     def test_reprocessing_same_video_overwrites(
         self, qdrant_test_repo, synthetic_video_path
@@ -81,8 +86,9 @@ class TestFullPipeline:
 
         # Search should return only 3 results (not 6)
         search_service = SearchVideoService(embedder, repository)
-        results = search_service.execute("red", limit=10)
-        assert len(results) == 3
+        page = search_service.execute("red", limit=10)
+        assert len(page.results) == 3
+        assert page.total == 3
 
     def test_different_videos_stored_separately(
         self, qdrant_test_repo, synthetic_video_path, synthetic_video_path_short
@@ -100,11 +106,12 @@ class TestFullPipeline:
         process_service.execute(synthetic_video_path_short, "video_b")
 
         # Search should find results from both
-        results = search_service.execute("red", limit=10)
+        page = search_service.execute("red", limit=10)
 
-        video_names = {r.video_name for r in results}
+        video_names = {r.video_name for r in page.results}
         assert "video_a" in video_names
         assert "video_b" in video_names
+        assert page.total >= 2
 
     def test_limit_parameter_respected(self, qdrant_test_repo, synthetic_video_path):
         """Search limit parameter should be respected."""
@@ -118,12 +125,14 @@ class TestFullPipeline:
         process_service.execute(synthetic_video_path, "limit_test")
 
         # Request only 1 result
-        results = search_service.execute("red", limit=1)
-        assert len(results) == 1
+        page = search_service.execute("red", limit=1)
+        assert len(page.results) == 1
+        assert page.limit == 1
 
         # Request 2 results
-        results = search_service.execute("red", limit=2)
-        assert len(results) == 2
+        page = search_service.execute("red", limit=2)
+        assert len(page.results) == 2
+        assert page.limit == 2
 
     def test_fps_sample_rate_affects_frame_count(
         self, qdrant_in_memory, synthetic_video_path

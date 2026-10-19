@@ -1,11 +1,13 @@
 # Concrete implementation for data persistence using Qdrant
 import uuid
-from typing import List
+from typing import List, Optional
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import (
+    Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+)
 
 # modelo e interfaz
-from domain.interfaces.repository import VectorRepositoryInterface
+from domain.interfaces.repository import VectorRepositoryInterface, SearchPage
 from domain.models import SearchResult
 from config.settings import settings
 
@@ -42,7 +44,13 @@ class QdrantVectorRepository(VectorRepositoryInterface):
             )
 
     # Guardar vectores en la base de datos
-    def save_vectors(self,video_name: str,frame_ids: List[str],timestamps: List[float],vectors: List[List[float]]) -> None:
+    def save_vectors(
+        self,
+        video_name: str,
+        frame_ids: List[str],
+        timestamps: List[float],
+        vectors: List[List[float]]
+    ) -> None:
         if not (len(frame_ids) == len(timestamps) == len(vectors)):
             raise ValueError(
                 f"Longitudes no coinciden: "
@@ -57,7 +65,7 @@ class QdrantVectorRepository(VectorRepositoryInterface):
 
         for f_id, ts, vec in zip(frame_ids, timestamps, vectors):
             # Genera un ID único para cada punto
-            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_name}_{f_id}")) 
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_name}_{f_id}"))
 
             # Crea el payload con los datos del fotograma
             payload = {
@@ -79,27 +87,67 @@ class QdrantVectorRepository(VectorRepositoryInterface):
                 wait=True,
             )
 
-    # Buscar vectores similares
-    def search_similar(self,query_vector: List[float],limit: int = 5) -> List[SearchResult]:
+    # Buscar vectores similares con paginación y filtro opcional
+    def search_similar(
+        self,
+        query_vector: List[float],
+        limit: int = 5,
+        offset: int = 0,
+        video_name: Optional[str] = None
+    ) -> SearchPage:
         if not query_vector:
             raise ValueError("query_vector no puede estar vacío")
         if limit < 1:
             raise ValueError("limit debe ser >= 1")
+        if offset < 0:
+            raise ValueError("offset debe ser >= 0")
 
+        # Construir filtro opcional por video_name
+        query_filter = None
+        if video_name:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="video_name",
+                        match=MatchValue(value=video_name)
+                    )
+                ]
+            )
+
+        # Obtener total de coincidencias (para paginación)
+        # Usamos count con el mismo filtro
+        count_result = self.client.count(
+            collection_name=self.collection,
+            count_filter=query_filter,
+            exact=True,
+        )
+        total = count_result.count
+
+        # Buscar con paginación
+        # Qdrant usa offset + limit
         results = self.client.query_points(
             collection_name=self.collection,
             query=query_vector,
+            query_filter=query_filter,
             limit=limit,
+            offset=offset,
         ).points
-    
+
         search_results: List[SearchResult] = []
         for res in results:
             payload = res.payload or {}
             search_results.append(
                 SearchResult(
-                frame_id=payload.get("frame_id", ""),
-                video_name=payload.get("video_name", ""),
-                timestamp_seconds=payload.get("timestamp_seconds", 0.0),
-                score=float(res.score) if res.score is not None else 0.0,
-            ))
-        return search_results
+                    frame_id=payload.get("frame_id", ""),
+                    video_name=payload.get("video_name", ""),
+                    timestamp_seconds=payload.get("timestamp_seconds", 0.0),
+                    score=float(res.score) if res.score is not None else 0.0,
+                )
+            )
+
+        return SearchPage(
+            results=search_results,
+            total=total,
+            limit=limit,
+            offset=offset,
+        )

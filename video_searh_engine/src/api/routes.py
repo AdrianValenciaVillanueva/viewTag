@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
 from config.settings import settings
+from domain.interfaces.repository import SearchPage
 
 # Models
 class ProcessRequest(BaseModel):
@@ -22,6 +23,15 @@ class SearchHit(BaseModel):
     video_name: str
     timestamp_seconds: float
     score: float
+
+
+class SearchPageResponse(BaseModel):
+    """Paginated search response with metadata."""
+    results: list[SearchHit]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
 
 
 router = APIRouter()
@@ -53,18 +63,42 @@ def process_video(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/search", response_model=list[SearchHit])
+@router.get("/search", response_model=SearchPageResponse)
 def search_video(
-    q: str = Query(min_length=1),
+    q: str = Query(min_length=1, description="Texto a buscar"),
     limit: int = Query(
         default=settings.search_default_limit,
         ge=settings.search_min_limit,
         le=settings.search_max_limit,
+        description="Máximo número de resultados",
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description="Número de resultados a saltar (paginación)",
+    ),
+    video_name: str | None = Query(
+        default=None,
+        description="Filtrar resultados por nombre de video",
     ),
     service: SearchVideoService = Depends(get_search_service),
 ):
     try:
-        return service.execute(q, limit)
+        page = service.execute(q, limit=limit, offset=offset, video_name=video_name)
+        return SearchPageResponse(
+            results=[
+                SearchHit(
+                    frame_id=r.frame_id,
+                    video_name=r.video_name,
+                    timestamp_seconds=r.timestamp_seconds,
+                    score=r.score,
+                )for r in page.results
+            ],
+            total=page.total,
+            limit=page.limit,
+            offset=page.offset,
+            has_more=page.has_more,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

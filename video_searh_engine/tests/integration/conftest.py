@@ -50,13 +50,38 @@ class TestQdrantRepository:
                 wait=True,
             )
 
-    def search_similar(self, query_vector, limit=5):
+    def search_similar(self, query_vector, limit=5, offset=0, video_name=None):
+        from domain.interfaces.repository import SearchPage
         from domain.models import SearchResult
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
 
+        # Build optional filter
+        query_filter = None
+        if video_name:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="video_name",
+                        match=MatchValue(value=video_name)
+                    )
+                ]
+            )
+
+        # Get total count
+        count_result = self.client.count(
+            collection_name=self.collection,
+            count_filter=query_filter,
+            exact=True,
+        )
+        total = count_result.count
+
+        # Query with pagination
         results = self.client.query_points(
             collection_name=self.collection,
             query=query_vector,
+            query_filter=query_filter,
             limit=limit,
+            offset=offset,
         ).points
 
         search_results = []
@@ -70,7 +95,13 @@ class TestQdrantRepository:
                     score=float(res.score) if res.score is not None else 0.0,
                 )
             )
-        return search_results
+
+        return SearchPage(
+            results=search_results,
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
 
 
 @pytest.fixture(scope="session")
