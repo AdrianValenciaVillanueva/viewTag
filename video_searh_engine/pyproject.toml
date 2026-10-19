@@ -37,6 +37,9 @@ dev = [
     "pre-commit>=3.0",
 ]
 
+[project.scripts]
+viewtag-api = "api.main:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["*"]

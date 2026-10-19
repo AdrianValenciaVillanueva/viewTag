@@ -29,7 +29,8 @@ async def read_root():
     return {"message": "Video Search Engine API"}
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the CLI command `viewtag-api`."""
     import uvicorn
 
     uvicorn.run(
@@ -38,3 +39,7 @@ if __name__ == "__main__":
         port=settings.api_port,
         reload=settings.api_reload,
     )
+
+
+if __name__ == "__main__":
+    main()
