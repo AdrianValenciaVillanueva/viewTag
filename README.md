@@ -73,16 +73,32 @@ cp .env.example .env
 
 ## Uso
 
-Arranca la API desde `video_searh_engine/`:
+### Opción 1: CLI (recomendado)
+Instala el paquete en modo editable y usa el comando global:
 
 ```bash
+cd video_searh_engine
+pip install -e .
+viewtag-api
+# Usa config del .env (host, port, reload)
+# docs interactivas en http://localhost:8001/docs (o tu API_PORT)
+```
+
+### Opción 2: Python directo
+```bash
+cd video_searh_engine
+python src/api/main.py
+```
+
+### Opción 3: Uvicorn manual
+```bash
+cd video_searh_engine
 uvicorn api.main:app --reload
 # docs interactivas en http://localhost:8000/docs
 ```
 
-> Todos los comandos se ejecutan desde `video_searh_engine/`,
-> porque los imports internos (`from domain...`) esperan `src/`
-> en el `PYTHONPATH` (ver `pytest.ini`).
+> Todas las opciones usan la config centralizada (`.env` / `settings`).
+> La opción 1 (`viewtag-api`) es la más cómoda: no requiere `PYTHONPATH` ni rutas relativas.
 
 Procesa un video:
 
@@ -106,11 +122,34 @@ curl "localhost:8000/search?q=codigo&limit=3"
 | Método | Ruta             | Qué hace                                        |
 |--------|------------------|-------------------------------------------------|
 | POST   | `/process-video` | Extrae frames, los vectoriza y los guarda      |
-| GET    | `/search`        | Busca frames parecidos a un texto (`q`, `limit`) |
+| GET    | `/search`        | Busca frames parecidos a un texto (paginado, con filtro) |
+| GET    | `/health`        | Health check para load balancers / k8s         |
 | GET    | `/`              | Salud del servicio                              |
 
-Errores: `422` datos mal formados, `400` parámetro inválido,
-`404` video no encontrado, `500` error interno.
+### `GET /search` — Parámetros
+
+| Parámetro    | Tipo    | Requerido | Default | Descripción                                    |
+|--------------|---------|-----------|---------|------------------------------------------------|
+| `q`          | string  | ✅        | —       | Texto a buscar (min 1 char)                    |
+| `limit`      | integer | ❌        | 5       | Resultados por página (1–50)                   |
+| `offset`     | integer | ❌        | 0       | Resultados a saltar (paginación)               |
+| `video_name` | string  | ❌        | —       | Filtrar solo frames de este video              |
+
+### `GET /search` — Respuesta
+
+```json
+{
+  "results": [
+    { "frame_id": "frame_90", "video_name": "video", "timestamp_seconds": 3.0, "score": 0.91 }
+  ],
+  "total": 120,
+  "limit": 5,
+  "offset": 0,
+  "has_more": true
+}
+```
+
+Errores: `422` datos mal formados, `400` parámetro inválido, `404` video no encontrado, `500` error interno.
 
 ## Estructura
 
@@ -158,11 +197,24 @@ cd video_searh_engine
 python -m pytest tests -v
 ```
 
-30 tests unitarios con mocks (12 fixtures + 18 servicios de aplicación).
-Los scripts `test_pipeline.py` y `test_qdrant.py` son pruebas manuales
-adicionales, no parte de la suite.
+**39 tests** (32 unitarios + 7 integración):
+
+| Suite | Tests | Qué cubre |
+|-------|-------|-----------|
+| `test_fixtures.py` | 12 | Fixtures base (frames, vectores, mocks) |
+| `test_process_video.py` | 8 | `ProcessVideoService`: flujo, validaciones, errores |
+| `test_search_video.py` | 12 | `SearchVideoService`: paginación, filtro video_name, SearchPage |
+| `integration/test_pipeline.py` | 7 | Pipeline real: video sintético + Qdrant en memoria |
+
+Los scripts `test_pipeline.py` y `test_qdrant.py` en la raíz son pruebas manuales adicionales, no parte de la suite.
 
 ## Pendiente
 
-- Tests de integración reales (video sintético + Qdrant temporal).
-- Paginación y filtrado por `video_name` en `/search`.
+- Dockerfile multi-stage + GitHub Actions CI (lint, type-check, tests)
+- Logging estructurado (JSON) + métricas Prometheus `/metrics`
+- Rate limiting / API keys (`slowapi`)
+- Graceful shutdown en lifespan (cleanup Qdrant, modelo)
+- Pre-commit hooks (ruff, mypy, tests)
+- Cache de embeddings (Redis / disco) para reprocesamiento
+- Tests de carga (locust/k6)
+- Async real en infraestructura (extractor, embedder, repo)
