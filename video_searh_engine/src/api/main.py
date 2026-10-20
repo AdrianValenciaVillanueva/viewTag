@@ -42,20 +42,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Video Search Engine", lifespan=lifespan)
 
-# 1. Incluir router - workaround para include_router que no funciona
+# 1. Workaround: agregar rutas del router manualmente (include_router no funciona)
 for route in router.routes:
     app.router.routes.append(route)
 
-# 2. Prometheus metrics - DESPUÉS de crear app e incluir router
+# 2. Prometheus metrics - ANTES de endpoints que lo usan
 instrumentator = Instrumentator(
     should_group_status_codes=False,
     should_ignore_untemplated=True,
-    should_respect_env_var=True,
     should_instrument_requests_inprogress=True,
     excluded_handlers=["/health", "/metrics"],
 ).instrument(app)
 
-# 3. Endpoint manual /metrics - USANDO registry del instrumentator
+# 2. Endpoints adicionales
 @app.get("/metrics", include_in_schema=False)
 async def metrics():
     return Response(
