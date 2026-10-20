@@ -56,6 +56,8 @@ Variables principales (ver `.env.example` para la lista completa):
 
 ## Instalación
 
+### Local (Python)
+
 ```bash
 cd video_searh_engine
 
@@ -69,6 +71,27 @@ pip install -r tests/requirements.txt
 # opcional: configurar variables de entorno
 cp .env.example .env
 # editar .env si se desea cambiar rutas, modelo, lotes, etc.
+```
+
+### Con Docker (recomendado para producción)
+
+```bash
+cd video_searh_engine
+
+# Build imagen CPU
+docker build -t viewtag .
+
+# O con GPU (requiere nvidia-container-toolkit)
+docker build --build-arg ENABLE_GPU=1 -t viewtag:gpu .
+
+# Run con docker-compose (persistencia + hot reload en dev)
+docker compose up --build
+
+# O run manual
+docker run -p 8000:8000 \
+  -v $(pwd)/qdrant_data:/app/qdrant_data \
+  -v $(pwd)/.env:/app/.env:ro \
+  viewtag
 ```
 
 ## Uso
@@ -208,13 +231,116 @@ python -m pytest tests -v
 
 Los scripts `test_pipeline.py` y `test_qdrant.py` en la raíz son pruebas manuales adicionales, no parte de la suite.
 
+## Docker
+
+### Multi-stage Dockerfile
+
+```dockerfile
+# Build: docker build -t viewtag .
+# GPU:   docker build --build-arg ENABLE_GPU=1 -t viewtag:gpu .
+# Run:   docker run -p 8000:8000 -v $(pwd)/qdrant_data:/app/qdrant_data viewtag
+```
+
+**Características:**
+- **Multi-stage**: base → builder → gpu-builder → runtime (imagen final ~500MB CPU, ~3GB GPU)
+- **Non-root user**: `appuser` para seguridad
+- **Healthcheck**: `curl /health` cada 30s
+- **Entry point**: `viewtag-api` (usa config del `.env`)
+- **GPU opcional**: `--build-arg ENABLE_GPU=1` instala PyTorch CUDA 12.1
+
+### Docker Compose (desarrollo)
+
+```bash
+docker compose up --build    # Primera vez / cambios en Dockerfile
+docker compose up -d         # Detached
+docker compose logs -f       # Ver logs
+docker compose down -v       # Para y borra volumes
+```
+
+Incluye persistencia de Qdrant (`qdrant_data` volume), hot reload de código (`./src:/app/src:ro`), y montaje de `.env`.
+
+## CI/CD — GitHub Actions
+
+Pipeline completo en `.github/workflows/ci.yml`:
+
+| Job | Qué hace | Trigger |
+|-----|----------|---------|
+| `lint` | `ruff check` + `ruff format --check` | Push/PR a `main` |
+| `type-check` | `mypy --strict src/` | Push/PR a `main` |
+| `unit-tests` | `pytest tests/unit -v` | Push/PR a `main` |
+| `integration-tests` | `pytest tests/integration -v` (modelo real + Qdrant mem) | Push/PR a `main` |
+| `docker-build` | Build imagen CPU + smoke test `curl /health` | Push/PR a `main` |
+| `docker-build-gpu` | Build + test imagen GPU | Manual / Schedule |
+| `release` | Build/push a **GHCR** + GitHub Release | Tag `v*` |
+
+**Release automático:** Al hacer push de un tag `v1.0.0`, se publican:
+- `ghcr.io/user/viewtag:v1.0.0` y `:latest` (CPU)
+- `ghcr.io/user/viewtag:v1.0.0-gpu` y `:gpu-latest` (GPU)
+
+## Pre-commit Hooks
+
+Calidad automática antes de cada commit:
+
+```bash
+# Instalar (una vez)
+pip install pre-commit
+pre-commit install
+
+# Probar manualmente
+pre-commit run --all-files
+```
+
+**Hooks configurados:**
+- `ruff` + `ruff-format` — Lint y formato (reemplaza flake8/black/isort)
+- `mypy --strict` — Type checking en `src/`
+- `check-merge-conflict` — Detecta `<<<<<<< HEAD` sin resolver
+- `gitleaks` — Escanea secrets (API keys, tokens)
+- `check-yaml/toml`, `end-of-file-fixer`, `trailing-whitespace`, `mixed-line-ending(lf)`
+
+## Script Helper — `./dev.sh`
+
+```bash
+./dev.sh <comando>
+
+Comandos:
+  setup         → venv + deps + pre-commit install
+  test          → Todos los tests (unit + integration)
+  test-unit     → Solo unit tests
+  test-int      → Solo integration tests
+  lint          → ruff check
+  format        → ruff format + fix
+  type-check    → mypy --strict
+  check         → lint + type-check + test-unit (todo)
+  run           → viewtag-api (usa .env)
+  run-docker    → docker compose up --build
+  build-docker  → docker build -t viewtag .
+  clean         → Limpia caches (__pycache__, .pytest_cache, etc.)
+  pre-commit    → Instala/actualiza hooks
+  help          → Muestra esta ayuda
+```
+
+Ejemplo flujo diario:
+```bash
+./dev.sh setup       # Primera vez
+./dev.sh check       # Antes de commit/PR
+./dev.sh run         # Desarrollo local
+./dev.sh run-docker  # Test en contenedor
+```
+
 ## Pendiente
 
-- Dockerfile multi-stage + GitHub Actions CI (lint, type-check, tests)
+### Producción / Robustez
 - Logging estructurado (JSON) + métricas Prometheus `/metrics`
 - Rate limiting / API keys (`slowapi`)
 - Graceful shutdown en lifespan (cleanup Qdrant, modelo)
-- Pre-commit hooks (ruff, mypy, tests)
+
+### Escalabilidad / Performance
 - Cache de embeddings (Redis / disco) para reprocesamiento
-- Tests de carga (locust/k6)
 - Async real en infraestructura (extractor, embedder, repo)
+- Batch processing endpoint (`POST /process-videos`)
+
+### Calidad de vida
+- Tests de carga (locust/k6)
+- OpenAPI examples + tags en Swagger UI
+- Webhook callbacks (`POST /callback` al terminar procesar)
+- Multi-tenancy real (`tenant_id` + aislamiento datos)
