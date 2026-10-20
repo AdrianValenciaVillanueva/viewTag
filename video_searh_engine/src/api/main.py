@@ -1,5 +1,9 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_fastapi_instrumentator import Instrumentator
+
+from observability.logging import configure_logging, get_logger
 
 from api.routes import router
 from application.process_video import ProcessVideoService
@@ -10,18 +14,54 @@ from infrastructure.ia.siglip_embedder import SigLIPEmbedder
 from infrastructure.video.decord_extractor import DecordFrameExtractor
 
 
+# Configurar logging estructurado al importar el módulo
+configure_logging(json_logs=True, log_level="INFO")
+logger = get_logger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup
     embedder = SigLIPEmbedder()
     repository = QdrantVectorRepository()
     extractor = DecordFrameExtractor()
+    logger.info("startup", embedder_loaded=True, qdrant_connected=True)
     app.state.process = ProcessVideoService(extractor, embedder, repository)
     app.state.search = SearchVideoService(embedder, repository)
     yield
+    # Shutdown graceful
+    logger.info("shutdown_started")
+    if hasattr(repository, 'client') and hasattr(repository.client, 'close'):
+        try:
+            repository.client.close()
+            logger.info("qdrant_client_closed")
+        except Exception as e:
+            logger.warning("qdrant_close_failed", error=str(e))
+    logger.info("shutdown_complete")
 
 
 app = FastAPI(title="Video Search Engine", lifespan=lifespan)
-app.include_router(router)
+
+# 1. Incluir router - workaround para include_router que no funciona
+for route in router.routes:
+    app.router.routes.append(route)
+
+# 2. Prometheus metrics - DESPUÉS de crear app e incluir router
+instrumentator = Instrumentator(
+    should_group_status_codes=False,
+    should_ignore_untemplated=True,
+    should_respect_env_var=True,
+    should_instrument_requests_inprogress=True,
+    excluded_handlers=["/health", "/metrics"],
+).instrument(app)
+
+# 3. Endpoint manual /metrics - USANDO registry del instrumentator
+@app.get("/metrics", include_in_schema=False)
+async def metrics():
+    return Response(
+        content=generate_latest(instrumentator.registry),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 
 @app.get("/")
@@ -31,6 +71,7 @@ async def read_root():
 
 def main():
     """Entry point for the CLI command `viewtag-api`."""
+    logger.info("starting_server", host=settings.api_host, port=settings.api_port)
     import uvicorn
 
     uvicorn.run(
