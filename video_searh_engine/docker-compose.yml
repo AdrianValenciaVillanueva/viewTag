@@ -1,0 +1,62 @@
+# Docker Compose for local development
+# Usage: docker compose up --build
+#        docker compose up -d  (detached)
+#        docker compose logs -f
+#        docker compose down -v  (remove volumes)
+
+services:
+  # Main API service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Uncomment for GPU support (requires nvidia-container-toolkit)
+      # args:
+      #   ENABLE_GPU: 1
+    container_name: viewtag-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - QDRANT_STORAGE_PATH=/app/qdrant_data
+      - QDRANT_COLLECTION_NAME=video_frames
+      - SIGLIP_MODEL_NAME=google/siglip-base-patch16-224
+      - FPS_SAMPLE_RATE=1.0
+      - IMAGE_BATCH_SIZE=32
+      - UPSERT_BATCH_SIZE=256
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_RELOAD=true
+      - SEARCH_DEFAULT_LIMIT=5
+      - SEARCH_MAX_LIMIT=50
+      - SEARCH_MIN_LIMIT=1
+      - TEXT_MAX_LENGTH=64
+    volumes:
+      # Persist Qdrant data
+      - qdrant_data:/app/qdrant_data
+      # Mount .env for configuration (optional, overrides environment above)
+      - ./.env:/app/.env:ro
+      # Mount source code for hot reload in development
+      - ./src:/app/src:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  # Optional: Qdrant server mode (instead of embedded)
+  # Uncomment if you prefer separate Qdrant server
+  # qdrant:
+  #   image: qdrant/qdrant:v1.9.0
+  #   container_name: viewtag-qdrant
+  #   ports:
+  #     - "6333:6333"
+  #     - "6334:6334"
+  #   volumes:
+  #     - qdrant_data:/qdrant/storage
+  #   restart: unless-stopped
+
+volumes:
+  qdrant_data:
+    driver: local
