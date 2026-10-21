@@ -19,7 +19,7 @@ video.mp4
   │  POST /process-video
   ▼
 [frames] → [vectores SigLIP] → [Qdrant]
-                                    │
+                                     │
   GET /search?q=codigo ─────────────┘
   ▼
 [{ frame, segundo, score }, ...]
@@ -191,6 +191,9 @@ video_searh_engine/src/
 │   ├── video/decord_extractor.py  # frames JPEG, validado y por lotes
 │   ├── ia/siglip_embedder.py      # embeddings normalizados, lotes de 32
 │   └── database/qdrant_repo.py    # Qdrant local, upsert por lotes
+├── observability/           # logging, métricas, tracing
+│   ├── __init__.py
+│   └── logging.py           # structlog config (JSON/console), get_logger()
 └── api/                     # FastAPI: DTOs, rutas y composition root
     ├── routes.py
     └── main.py              # crea los singletons una vez (lifespan)
@@ -325,14 +328,97 @@ Ejemplo flujo diario:
 ./dev.sh check       # Antes de commit/PR
 ./dev.sh run         # Desarrollo local
 ./dev.sh run-docker  # Test en contenedor
+./dev.sh build-docker  # docker build -t viewtag .
+```
+
+## Observability
+
+### Logging estructurado (JSON)
+
+Logging con `structlog` + `python-json-logger`. Output JSON por línea:
+
+```json
+{"timestamp": "2026-10-20T18:53:12.205739Z", "level": "info", "logger": "api.main", "event": "startup", "embedder_loaded": true, "qdrant_connected": true}
+{"timestamp": "2026-10-20T18:53:45.123456Z", "level": "info", "logger": "api.main", "event": "shutdown_started"}
+{"timestamp": "2026-10-20T18:53:45.124567Z", "level": "info", "logger": "api.main", "event": "qdrant_client_closed"}
+{"timestamp": "2026-10-20T18:53:45.125678Z", "level": "info", "logger": "api.main", "event": "shutdown_complete"}
+```
+
+- **Producción**: JSON lines (compatible con ELK, Datadog, Loki, CloudWatch)
+- **Desarrollo**: Consola colorizada legible
+- Configurable via `configure_logging(json_logs=True/False, log_level="INFO")`
+- Uso: `logger = get_logger(__name__); logger.info("evento", key=value, ...)`
+
+### Métricas Prometheus (`/metrics`)
+
+Endpoint expuesto automáticamente con `prometheus-fastapi-instrumentator`:
+
+```bash
+curl http://localhost:8001/metrics
+```
+
+Métricas incluidas:
+
+| Métrica | Tipo | Descripción |
+|---------|------|-------------|
+| `http_requests_total` | Counter | Requests por handler, método, status |
+| `http_request_duration_seconds` | Histogram | Latencia por handler, método |
+| `http_requests_inprogress` | Gauge | Requests concurrentes |
+| `http_request_size_bytes` | Histogram | Tamaño request body |
+| `http_response_size_bytes` | Histogram | Tamaño response body |
+| `http_request_duration_highr_seconds` | Histogram | Latencia alta resolución |
+
+Excluye `/health` y `/metrics` para evitar ruido.
+
+### Graceful Shutdown
+
+Cierre ordenado en `lifespan` de FastAPI:
+
+```json
+{"event": "shutdown_started", "logger": "api.main", "level": "info", "timestamp": "..."}
+{"event": "qdrant_client_closed", "logger": "api.main", "level": "info", "timestamp": "..."}
+{"event": "shutdown_complete", "logger": "api.main", "level": "info", "timestamp": "..."}
+```
+
+- Cierra cliente Qdrant liberando lock en `./qdrant_data`
+- Logs estructurados para auditoría
+- Compatible con `docker stop` (SIGTERM), `kubectl delete pod`, `Ctrl+C`
+
+## Script Helper — `./dev.sh`
+
+```bash
+./dev.sh <comando>
+
+Comandos:
+  setup         → venv + deps + pre-commit install
+  test          → Todos los tests (unit + integration)
+  test-unit     → Solo unit tests
+  test-int      → Solo integration tests
+  lint          → ruff check
+  format        → ruff format + fix
+  type-check    → mypy --strict
+  check         → lint + type-check + test-unit (todo)
+  run           → viewtag-api (usa .env)
+  run-docker    → docker compose up --build
+  build-docker  → docker build -t viewtag .
+  clean         → Limpia caches (__pycache__, .pytest_cache, etc.)
+  pre-commit    → Instala/actualiza hooks
+  help          → Muestra esta ayuda
+```
+
+Ejemplo flujo diario:
+```bash
+./dev.sh setup       # Primera vez
+./dev.sh check       # Antes de commit/PR
+./dev.sh run         # Desarrollo local
+./dev.sh run-docker  # Test en contenedor
+./dev.sh build-docker  # docker build -t viewtag .
 ```
 
 ## Pendiente
 
 ### Producción / Robustez
-- Logging estructurado (JSON) + métricas Prometheus `/metrics`
 - Rate limiting / API keys (`slowapi`)
-- Graceful shutdown en lifespan (cleanup Qdrant, modelo)
 
 ### Escalabilidad / Performance
 - Cache de embeddings (Redis / disco) para reprocesamiento
