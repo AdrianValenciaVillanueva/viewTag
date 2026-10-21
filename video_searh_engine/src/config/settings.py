@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     search_max_limit: int = 50
     search_min_limit: int = 1
     
+    # Rate limiting
+    rate_limit_requests_per_minute: int = 60
+    rate_limit_storage_uri: str = "memory://"
+    
     # Text processing
     text_max_length: int = 64
 

@@ -5,6 +5,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from observability.logging import configure_logging, get_logger
 
+from api.rate_limit import limiter, setup_rate_limiting
 from api.routes import router
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
@@ -41,6 +42,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Video Search Engine", lifespan=lifespan)
+
+# Rate limiting
+setup_rate_limiting(app)
 
 # 1. Workaround: agregar rutas del router manualmente (include_router no funciona)
 for route in router.routes:

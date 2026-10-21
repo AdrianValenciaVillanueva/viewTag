@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from api.rate_limit import limiter
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
 from config.settings import settings
@@ -38,7 +39,8 @@ router = APIRouter()
 
 
 @router.get("/health")
-def health_check():
+@limiter.limit("100/minute")
+def health_check(request: Request):
     return {"status": "ok"}
 
 
@@ -51,7 +53,9 @@ def get_search_service(request: Request) -> SearchVideoService:
 
 
 @router.post("/process-video", response_model=ProcessResponse)
+@limiter.limit("10/minute")
 def process_video(
+    request: Request,
     body: ProcessRequest,
     service: ProcessVideoService = Depends(get_process_service),
 ):
@@ -64,7 +68,9 @@ def process_video(
 
 
 @router.get("/search", response_model=SearchPageResponse)
+@limiter.limit("30/minute")
 def search_video(
+    request: Request,
     q: str = Query(min_length=1, description="Texto a buscar"),
     limit: int = Query(
         default=settings.search_default_limit,
