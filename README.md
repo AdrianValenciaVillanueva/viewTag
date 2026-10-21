@@ -331,6 +331,22 @@ Ejemplo flujo diario:
 ./dev.sh build-docker  # docker build -t viewtag .
 ```
 
+## Pendiente
+
+### Producción / Robustez
+- (completado) Rate limiting / API keys (`slowapi`)
+
+### Escalabilidad / Performance
+- Cache de embeddings (Redis / disco) para reprocesamiento
+- Async real en infraestructura (extractor, embedder, repo)
+- Batch processing endpoint (`POST /process-videos`)
+
+### Calidad de vida
+- Tests de carga (locust/k6)
+- OpenAPI examples + tags en Swagger UI
+- Webhook callbacks (`POST /callback` al terminar procesar)
+- Multi-tenancy real (`tenant_id` + aislamiento datos)
+
 ## Observability
 
 ### Logging estructurado (JSON)
@@ -418,7 +434,7 @@ Ejemplo flujo diario:
 ## Pendiente
 
 ### Producción / Robustez
-- Rate limiting / API keys (`slowapi`)
+- (completado) Rate limiting / API keys (`slowapi`)
 
 ### Escalabilidad / Performance
 - Cache de embeddings (Redis / disco) para reprocesamiento
@@ -430,3 +446,68 @@ Ejemplo flujo diario:
 - OpenAPI examples + tags en Swagger UI
 - Webhook callbacks (`POST /callback` al terminar procesar)
 - Multi-tenancy real (`tenant_id` + aislamiento datos)
+
+## Rate Limiting + API Keys
+
+Rate limiting con `slowapi` para proteger la API de abuso y permitir multi-tenancy.
+
+### Configuración
+
+```bash
+# .env
+RATE_LIMIT_REQUESTS_PER_MINUTE=60
+RATE_LIMIT_STORAGE_URI=memory://  # o redis://localhost:6379 en producción
+```
+
+### Endpoints con rate limit
+
+| Endpoint | Límite | Descripción |
+|----------|--------|-------------|
+| `/health` | 100/min | Health check frecuente |
+| `/search` | 30/min | Búsqueda semántica |
+| `/process-video` | 10/min | Procesamiento costoso |
+
+### API Keys (header `X-API-Key`)
+
+Permite buckets de rate limit separados por cliente:
+
+```bash
+# Sin API Key → bucket por IP (límite compartido)
+curl http://localhost:8001/health
+
+# Con API Key → bucket propio (límite independiente)
+curl -H "X-API-Key: mi-api-key-secreta" http://localhost:8001/search?q=test
+```
+
+- Cada API Key tiene su propio bucket de rate limit independiente
+- Permite multi-tenancy: cada cliente tiene su propio límite
+- Header: `X-API-Key: tu-api-key-secreta`
+
+### Response 429 (Rate Limited)
+
+```json
+{
+  "error": "rate_limit_exceeded",
+  "message": "Rate limit exceeded: 100 per 1 minute",
+  "retry_after": 60
+}
+```
+
+Headers:
+```
+Retry-After: 60
+```
+
+### Configuración avanzada
+
+```bash
+# Storage en Redis (producción)
+RATE_LIMIT_STORAGE_URI=redis://localhost:6379
+
+# Límite personalizado por endpoint (en código)
+@limiter.limit("5/minute")
+@router.get("/endpoint-costoso")
+async def endpoint_costoso(...):
+```
+
+## Script Helper — `./dev.sh`
