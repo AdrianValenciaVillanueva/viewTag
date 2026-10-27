@@ -52,11 +52,18 @@ EOF
 cmd_setup() {
     log_info "Setting up development environment..."
     python -m venv .venv
-    source .venv/bin/activate
-    pip install --upgrade pip
-    pip install -e .[test,dev]
+    if [ -f ".venv/bin/activate" ]; then
+        source .venv/bin/activate
+    elif [ -f ".venv/Scripts/activate" ]; then
+        source .venv/Scripts/activate
+    else
+        echo "No se encontró el entorno virtual .venv"
+
+    fi
+    python -m pip install --upgrade pip
+    python -m pip install -e .[test,dev]
     pre-commit install
-    log_success "Setup complete! Activate venv with: source .venv/bin/activate"
+    log_success "Setup complete!"
 }
 
 cmd_test() {
