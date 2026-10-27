@@ -20,7 +20,11 @@ dependencies = [
     "pydantic-settings>=2.0",
     "fastapi>=0.142.2",
     "uvicorn>=0.54.0",
-    "slowapi>=0.1.9"
+    "slowapi>=0.1.9",
+    "prometheus_client",
+    "prometheus_fastapi_instrumentator",
+    "structlog",
+    "python-json-logger>=1",
 ]
 
 [project.optional-dependencies]
