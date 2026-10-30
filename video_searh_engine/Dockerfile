@@ -19,8 +19,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Set Hugging Face cache to writable location
+ENV HF_HOME=/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface
+
 # Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && mkdir -p /app/.cache/huggingface \
+    && chown -R appuser:appuser /app
 
 # Set working directory
 WORKDIR /app
@@ -36,8 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
+# Copy dependency files and source code
 COPY pyproject.toml ./
+COPY src/ ./src/
 
 # Install Python dependencies in a virtual environment
 RUN python -m venv /opt/venv
