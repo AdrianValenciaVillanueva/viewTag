@@ -3,7 +3,7 @@
 
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -20,9 +20,11 @@ def get_client_id(request: Request) -> str:
     # Intentar obtener API Key del header
     api_key = request.headers.get("X-API-Key")
     if api_key:
-        return f"apikey:{api_key}"
-    # Fallback a IP
-    return get_remote_address(request)
+        allowed = [key.strip() for key in settings.api_keys.split(",") if key.strip()]
+        if allowed and api_key not in allowed:
+            raise HTTPException(status_code=401, detail="Invalid API Key")
+        return f"api_key:{api_key}"
+    return get_remote_address(request)  # Fallback a IP
 
 
 # Limiter global - usa client_id (IP + API Key)
@@ -50,6 +52,17 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
         },
         headers={"Retry-After": str(retry_after)},
     )
+
+
+def validate_api_key(request: Request) -> None:
+    """Dependency: valida X-API-Key si se envía. Anónimo si no se envía."""
+    api_key = request.headers.get("X-API-Key")
+    if not api_key:
+        return
+
+    allowed = [k.strip() for k in settings.api_keys.split(",") if k.strip()]
+    if allowed and api_key not in allowed:
+        raise HTTPException(status_code=401, detail="Invalid API key")
 
 
 def setup_rate_limiting(app: FastAPI) -> None:

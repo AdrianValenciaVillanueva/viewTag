@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from api.rate_limit import limiter
+from api.rate_limit import limiter, validate_api_key
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
 from config.settings import settings
@@ -53,7 +53,9 @@ def get_search_service(request: Request) -> SearchVideoService:
     return request.app.state.search
 
 
-@router.post("/process-video", response_model=ProcessResponse)
+@router.post(
+    "/process-video", response_model=ProcessResponse, dependencies=[Depends(validate_api_key)]
+)
 @limiter.limit("10/minute")
 def process_video(
     request: Request,
@@ -68,7 +70,7 @@ def process_video(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.get("/search", response_model=SearchPageResponse)
+@router.get("/search", response_model=SearchPageResponse, dependencies=[Depends(validate_api_key)])
 @limiter.limit("30/minute")
 def search_video(
     request: Request,

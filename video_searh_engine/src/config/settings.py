@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Text processing
     text_max_length: int = 64
 
+    # API Keys (separadas por coma). Vacío = sin validación (modo anónimo).
+    api_keys: str = ""
+
 
 # Singleton instance
 settings = Settings()
