@@ -1,12 +1,13 @@
 # Define abstract interfaces for data extraction
 from abc import ABC, abstractmethod
-from typing import List
+
 from domain.models import Frame
 
+
 class FrameExtractorInterface(ABC):
-    #contrato a cumplir
+    # contrato a cumplir
     @abstractmethod
-    def extract(self,video_path:str) -> List[Frame]:
+    def extract(self, video_path: str) -> list[Frame]:
         """
         extraer fotogramas de un archivo de video
 

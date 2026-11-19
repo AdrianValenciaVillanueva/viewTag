@@ -1,13 +1,12 @@
 # Implementación concreta de extracción de frames usando Decord.
 import io
 import os
-from typing import List
-from decord import VideoReader, cpu
-from PIL import Image
 
-from domain.models import Frame
-from domain.interfaces.extractor import FrameExtractorInterface
 from config.settings import settings
+from decord import VideoReader, cpu
+from domain.interfaces.extractor import FrameExtractorInterface
+from domain.models import Frame
+from PIL import Image
 
 
 class DecordFrameExtractor(FrameExtractorInterface):
@@ -19,11 +18,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
     por segundo pedidos sin decodificar el video completo.
     """
 
-    def __init__(
-        self,
-        fps_sample_rate: float | None = None,
-        frame_batch_size: int | None = None,
-    ):
+    def __init__(self, fps_sample_rate: float | None = None, frame_batch_size: int | None = None):
         """
         :param fps_sample_rate: frames a extraer por segundo (default: settings.fps_sample_rate)
                                 ej: 1.0 = 1 frame/seg, 0.5 = 1 frame cada 2 seg
@@ -37,7 +32,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
         if self.frame_batch_size <= 0:
             raise ValueError(f"frame_batch_size debe ser > 0, recibido: {self.frame_batch_size}")
 
-    def extract(self, video_path: str) -> List[Frame]:
+    def extract(self, video_path: str) -> list[Frame]:
         # Guardar la ruta ayuda a rastrear de qué video vino cada Frame.
         # Se valida antes de abrir Decord para dar un error claro en vez
         # del error interno y críptico del lector.
@@ -70,7 +65,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
         if not frame_indices:
             return []
 
-        extracted_frames: List[Frame] = []
+        extracted_frames: list[Frame] = []
 
         # 3. Extraer por lotes para acotar el pico de RAM.
         # get_batch() devuelve un array numpy con todos los frames pedidos,
@@ -83,7 +78,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
             # Se comprime a JPEG porque Frame.image_bytes promete bytes
             # decodificables con Image.open (el raw de tobytes() no lo es
             # y además pierde width/height/mode para reconstruir).
-            for idx, frame_arr in zip(chunk_indices, batch_frames):
+            for idx, frame_arr in zip(chunk_indices, batch_frames, strict=True):
                 # El timestamp es la posición del frame dividida por los fps
                 # reales del video, redondeado a centésimas para el payload.
                 timestamp = idx / native_fps

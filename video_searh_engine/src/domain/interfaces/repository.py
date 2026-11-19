@@ -1,14 +1,15 @@
 # Define abstract interfaces for data persistence
 from abc import ABC, abstractmethod
-from typing import List, Optional
 from dataclasses import dataclass
+
 from domain.models import SearchResult
 
 
 @dataclass
 class SearchPage:
     """Paginated search results with metadata."""
-    results: List[SearchResult]
+
+    results: list[SearchResult]
     total: int
     limit: int
     offset: int
@@ -20,14 +21,13 @@ class SearchPage:
 
 
 class VectorRepositoryInterface(ABC):
-
     @abstractmethod
     def save_vectors(
         self,
         video_name: str,
-        frame_ids: List[str],
-        timestamps: List[float],
-        vectors: List[List[float]]
+        frame_ids: list[str],
+        timestamps: list[float],
+        vectors: list[list[float]],
     ) -> None:
         """guarda un conjunto de vectores y sus metadatos en la base de datos"""
         pass
@@ -35,10 +35,10 @@ class VectorRepositoryInterface(ABC):
     @abstractmethod
     def search_similar(
         self,
-        query_vector: List[float],
+        query_vector: list[float],
         limit: int = 5,
         offset: int = 0,
-        video_name: Optional[str] = None
+        video_name: str | None = None,
     ) -> SearchPage:
         """
         Busca los vectores más cercanos a un vector de consulta con paginación y filtro opcional.

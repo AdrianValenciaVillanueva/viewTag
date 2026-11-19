@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-
-from api.rate_limit import limiter
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
 from config.settings import settings
-from domain.interfaces.repository import SearchPage
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
+
+from api.rate_limit import limiter
+
 
 # Models
 class ProcessRequest(BaseModel):
@@ -28,6 +28,7 @@ class SearchHit(BaseModel):
 
 class SearchPageResponse(BaseModel):
     """Paginated search response with metadata."""
+
     results: list[SearchHit]
     total: int
     limit: int
@@ -62,9 +63,9 @@ def process_video(
     try:
         return service.execute(body.video_path, body.video_name)
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/search", response_model=SearchPageResponse)
@@ -78,14 +79,9 @@ def search_video(
         le=settings.search_max_limit,
         description="Máximo número de resultados",
     ),
-    offset: int = Query(
-        default=0,
-        ge=0,
-        description="Número de resultados a saltar (paginación)",
-    ),
+    offset: int = Query(default=0, ge=0, description="Número de resultados a saltar (paginación)"),
     video_name: str | None = Query(
-        default=None,
-        description="Filtrar resultados por nombre de video",
+        default=None, description="Filtrar resultados por nombre de video"
     ),
     service: SearchVideoService = Depends(get_search_service),
 ):
@@ -98,7 +94,8 @@ def search_video(
                     video_name=r.video_name,
                     timestamp_seconds=r.timestamp_seconds,
                     score=r.score,
-                )for r in page.results
+                )
+                for r in page.results
             ],
             total=page.total,
             limit=page.limit,
@@ -106,5 +103,4 @@ def search_video(
             has_more=page.has_more,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
+        raise HTTPException(status_code=400, detail=str(e)) from e

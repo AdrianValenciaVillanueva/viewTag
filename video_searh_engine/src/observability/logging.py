@@ -1,8 +1,9 @@
 import logging
 import sys
 from typing import Any
+
 import structlog
-from pythonjsonlogger import jsonlogger
+
 
 def configure_logging(json_logs: bool = True, log_level: str = "INFO") -> None:
     """
@@ -12,14 +13,12 @@ def configure_logging(json_logs: bool = True, log_level: str = "INFO") -> None:
         json_logs: Si True, output JSON; si False, output consola legible (dev).
         log_level: Nivel mínimo de log (DEBUG, INFO, WARNING, ERROR).
     """
-    #configuracion basica
+    # configuracion basica
     logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, log_level.upper())
+        format="%(message)s", stream=sys.stdout, level=getattr(logging, log_level.upper())
     )
 
-#procesadores compartidos
+    # procesadores compartidos
     shared_processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
@@ -32,10 +31,10 @@ def configure_logging(json_logs: bool = True, log_level: str = "INFO") -> None:
     ]
 
     if json_logs:
-        #configuracion para logs en JSON
+        # configuracion para logs en JSON
         shared_processors.append(structlog.processors.JSONRenderer())
     else:
-        #configuracion para logs en consola legible
+        # configuracion para logs en consola legible
         shared_processors.append(structlog.dev.ConsoleRenderer(colors=True))
 
     structlog.configure(
@@ -44,6 +43,7 @@ def configure_logging(json_logs: bool = True, log_level: str = "INFO") -> None:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """

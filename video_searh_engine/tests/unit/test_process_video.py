@@ -1,9 +1,7 @@
 # Tests for ProcessVideoService
-import pytest
-from unittest.mock import Mock
 
+import pytest
 from application.process_video import ProcessVideoService
-from domain.models import Frame
 
 
 class TestProcessVideoService:
@@ -68,10 +66,7 @@ class TestProcessVideoService:
         assert result["video_name"] == "some_video"
 
     def test_execute_empty_frames_returns_zero_counts(
-        self,
-        mock_frame_extractor_sync,
-        mock_siglip_embedder_sync,
-        mock_qdrant_repo_sync,
+        self, mock_frame_extractor_sync, mock_siglip_embedder_sync, mock_qdrant_repo_sync
     ):
         """Test that empty frame list returns zeros without calling embedder/repo."""
         mock_frame_extractor_sync.extract.return_value = []
@@ -92,10 +87,7 @@ class TestProcessVideoService:
         assert result["embeddings_saved"] == 0
 
     def test_execute_raises_value_error_on_empty_video_source(
-        self,
-        mock_frame_extractor_sync,
-        mock_siglip_embedder_sync,
-        mock_qdrant_repo_sync,
+        self, mock_frame_extractor_sync, mock_siglip_embedder_sync, mock_qdrant_repo_sync
     ):
         """Test that empty video_source raises ValueError."""
         service = ProcessVideoService(
@@ -111,10 +103,7 @@ class TestProcessVideoService:
             service.execute("   ")
 
     def test_execute_raises_value_error_on_empty_video_name(
-        self,
-        mock_frame_extractor_sync,
-        mock_siglip_embedder_sync,
-        mock_qdrant_repo_sync,
+        self, mock_frame_extractor_sync, mock_siglip_embedder_sync, mock_qdrant_repo_sync
     ):
         """Test that empty video_name (after basename extraction) raises ValueError."""
         service = ProcessVideoService(
@@ -131,10 +120,7 @@ class TestProcessVideoService:
             service.execute("/path/")  # Directory path -> empty basename
 
     def test_execute_propagates_extractor_exception(
-        self,
-        mock_frame_extractor_sync,
-        mock_siglip_embedder_sync,
-        mock_qdrant_repo_sync,
+        self, mock_frame_extractor_sync, mock_siglip_embedder_sync, mock_qdrant_repo_sync
     ):
         """Test that extractor exceptions propagate."""
         mock_frame_extractor_sync.extract.side_effect = FileNotFoundError("Video not found")

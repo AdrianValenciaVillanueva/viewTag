@@ -2,12 +2,11 @@
 import os
 import tempfile
 import uuid
-from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
-import cv2
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import Distance, PointStruct, VectorParams
 
 
 class TestQdrantRepository:
@@ -21,10 +20,7 @@ class TestQdrantRepository:
         if not self.client.collection_exists(self.collection):
             self.client.create_collection(
                 collection_name=self.collection,
-                vectors_config=VectorParams(
-                    size=768,
-                    distance=Distance.COSINE,
-                ),
+                vectors_config=VectorParams(size=768, distance=Distance.COSINE),
             )
 
     def save_vectors(self, video_name, frame_ids, timestamps, vectors):
@@ -34,13 +30,9 @@ class TestQdrantRepository:
             return
 
         points = []
-        for f_id, ts, vec in zip(frame_ids, timestamps, vectors):
+        for f_id, ts, vec in zip(frame_ids, timestamps, vectors, strict=True):
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_name}_{f_id}"))
-            payload = {
-                "frame_id": f_id,
-                "video_name": video_name,
-                "timestamp_seconds": ts,
-            }
+            payload = {"frame_id": f_id, "video_name": video_name, "timestamp_seconds": ts}
             points.append(PointStruct(id=point_id, vector=vec, payload=payload))
 
         for i in range(0, len(points), self.upsert_batch_size):
@@ -53,25 +45,18 @@ class TestQdrantRepository:
     def search_similar(self, query_vector, limit=5, offset=0, video_name=None):
         from domain.interfaces.repository import SearchPage
         from domain.models import SearchResult
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         # Build optional filter
         query_filter = None
         if video_name:
             query_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="video_name",
-                        match=MatchValue(value=video_name)
-                    )
-                ]
+                must=[FieldCondition(key="video_name", match=MatchValue(value=video_name))]
             )
 
         # Get total count
         count_result = self.client.count(
-            collection_name=self.collection,
-            count_filter=query_filter,
-            exact=True,
+            collection_name=self.collection, count_filter=query_filter, exact=True
         )
         total = count_result.count
 
@@ -96,12 +81,7 @@ class TestQdrantRepository:
                 )
             )
 
-        return SearchPage(
-            results=search_results,
-            total=total,
-            limit=limit,
-            offset=offset,
-        )
+        return SearchPage(results=search_results, total=total, limit=limit, offset=offset)
 
 
 @pytest.fixture(scope="session")
@@ -160,7 +140,7 @@ def synthetic_video_path():
 
             cv2.putText(
                 frame,
-                f"Frame {i} (t={i/fps:.1f}s)",
+                f"Frame {i} (t={i / fps:.1f}s)",
                 (20, height // 2),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
@@ -177,6 +157,7 @@ def synthetic_video_path():
         if os.path.exists(video_path):
             # Ensure any readers are closed
             import gc
+
             gc.collect()
             try:
                 os.unlink(video_path)
@@ -208,6 +189,7 @@ def synthetic_video_path_short():
     finally:
         if os.path.exists(video_path):
             import gc
+
             gc.collect()
             try:
                 os.unlink(video_path)

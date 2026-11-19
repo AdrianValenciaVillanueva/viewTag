@@ -1,15 +1,20 @@
 # Concrete implementation for data persistence using Qdrant
 import uuid
-from typing import List, Optional
-from qdrant_client import QdrantClient
-from qdrant_client.models import (
-    Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
-)
+
+from config.settings import settings
 
 # modelo e interfaz
-from domain.interfaces.repository import VectorRepositoryInterface, SearchPage
+from domain.interfaces.repository import SearchPage, VectorRepositoryInterface
 from domain.models import SearchResult
-from config.settings import settings
+from qdrant_client import QdrantClient
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 
 class QdrantVectorRepository(VectorRepositoryInterface):
@@ -37,19 +42,16 @@ class QdrantVectorRepository(VectorRepositoryInterface):
         if not self.client.collection_exists(self.collection):
             self.client.create_collection(
                 collection_name=self.collection,
-                vectors_config=VectorParams(
-                    size=vector_size,
-                    distance=Distance.COSINE
-                )
+                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
             )
 
     # Guardar vectores en la base de datos
     def save_vectors(
         self,
         video_name: str,
-        frame_ids: List[str],
-        timestamps: List[float],
-        vectors: List[List[float]]
+        frame_ids: list[str],
+        timestamps: list[float],
+        vectors: list[list[float]],
     ) -> None:
         if not (len(frame_ids) == len(timestamps) == len(vectors)):
             raise ValueError(
@@ -63,22 +65,14 @@ class QdrantVectorRepository(VectorRepositoryInterface):
 
         points = []
 
-        for f_id, ts, vec in zip(frame_ids, timestamps, vectors):
+        for f_id, ts, vec in zip(frame_ids, timestamps, vectors, strict=True):
             # Genera un ID único para cada punto
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_name}_{f_id}"))
 
             # Crea el payload con los datos del fotograma
-            payload = {
-                "frame_id": f_id,
-                "video_name": video_name,
-                "timestamp_seconds": ts
-            }
+            payload = {"frame_id": f_id, "video_name": video_name, "timestamp_seconds": ts}
             # Agrega el punto a la lista de puntos
-            points.append(PointStruct(
-                id=point_id,
-                vector=vec,
-                payload=payload
-            ))
+            points.append(PointStruct(id=point_id, vector=vec, payload=payload))
 
         for i in range(0, len(points), self.upsert_batch_size):
             self.client.upsert(
@@ -90,10 +84,10 @@ class QdrantVectorRepository(VectorRepositoryInterface):
     # Buscar vectores similares con paginación y filtro opcional
     def search_similar(
         self,
-        query_vector: List[float],
+        query_vector: list[float],
         limit: int = 5,
         offset: int = 0,
-        video_name: Optional[str] = None
+        video_name: str | None = None,
     ) -> SearchPage:
         if not query_vector:
             raise ValueError("query_vector no puede estar vacío")
@@ -106,20 +100,13 @@ class QdrantVectorRepository(VectorRepositoryInterface):
         query_filter = None
         if video_name:
             query_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="video_name",
-                        match=MatchValue(value=video_name)
-                    )
-                ]
+                must=[FieldCondition(key="video_name", match=MatchValue(value=video_name))]
             )
 
         # Obtener total de coincidencias (para paginación)
         # Usamos count con el mismo filtro
         count_result = self.client.count(
-            collection_name=self.collection,
-            count_filter=query_filter,
-            exact=True,
+            collection_name=self.collection, count_filter=query_filter, exact=True
         )
         total = count_result.count
 
@@ -133,7 +120,7 @@ class QdrantVectorRepository(VectorRepositoryInterface):
             offset=offset,
         ).points
 
-        search_results: List[SearchResult] = []
+        search_results: list[SearchResult] = []
         for res in results:
             payload = res.payload or {}
             search_results.append(
@@ -145,9 +132,4 @@ class QdrantVectorRepository(VectorRepositoryInterface):
                 )
             )
 
-        return SearchPage(
-            results=search_results,
-            total=total,
-            limit=limit,
-            offset=offset,
-        )
+        return SearchPage(results=search_results, total=total, limit=limit, offset=offset)

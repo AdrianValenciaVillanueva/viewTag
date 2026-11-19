@@ -142,7 +142,7 @@ jobs:
       - name: Run integration tests
         run: |
           cd video_searh_engine
-          python -m pytest tests/integration -v --tb=short -m "integration and not slow"
+          python -m pytest tests/integration -v --tb=short -m "integration"
         env:
           # Skip slow model download in CI by using a tiny test model or mock
           # For now, run with real model (takes ~2 min)

@@ -331,22 +331,6 @@ Ejemplo flujo diario:
 ./dev.sh build-docker  # docker build -t viewtag .
 ```
 
-## Pendiente
-
-### Producción / Robustez
-- (completado) Rate limiting / API keys (`slowapi`)
-
-### Escalabilidad / Performance
-- Cache de embeddings (Redis / disco) para reprocesamiento
-- Async real en infraestructura (extractor, embedder, repo)
-- Batch processing endpoint (`POST /process-videos`)
-
-### Calidad de vida
-- Tests de carga (locust/k6)
-- OpenAPI examples + tags en Swagger UI
-- Webhook callbacks (`POST /callback` al terminar procesar)
-- Multi-tenancy real (`tenant_id` + aislamiento datos)
-
 ## Observability
 
 ### Logging estructurado (JSON)

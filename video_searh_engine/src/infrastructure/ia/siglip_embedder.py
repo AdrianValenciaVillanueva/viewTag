@@ -1,10 +1,10 @@
+from typing import Any
+
 import torch
-from typing import Any, Dict, List
+from config.settings import settings
+from domain.interfaces.embedder import VectorEmbedderInterface
 from PIL import Image
 from transformers import AutoProcessor, SiglipModel
-
-from domain.interfaces.embedder import VectorEmbedderInterface
-from config.settings import settings
 
 
 def _move_to_device(inputs: Any, device: str) -> Any:
@@ -15,7 +15,7 @@ def _move_to_device(inputs: Any, device: str) -> Any:
             return to_fn(device)
         except Exception:
             pass
-    if isinstance(inputs, Dict):
+    if isinstance(inputs, dict):
         return {k: (v.to(device) if isinstance(v, torch.Tensor) else v) for k, v in inputs.items()}
     data = getattr(inputs, "data", None)
     if isinstance(data, dict):
@@ -23,7 +23,7 @@ def _move_to_device(inputs: Any, device: str) -> Any:
     return inputs
 
 
-def _output_to_tensor(output: Any, attrs: List[str]) -> torch.Tensor:
+def _output_to_tensor(output: Any, attrs: list[str]) -> torch.Tensor:
     """Extrae el Tensor de la salida del modelo sin evaluar índices por defecto."""
     if isinstance(output, torch.Tensor):
         return output
@@ -55,25 +55,31 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         self.image_batch_size = image_batch_size or settings.image_batch_size
         self.text_max_length = text_max_length or settings.text_max_length
         # Usar model_path pasado por parámetro, o el de settings si no está vacío
-        self.model_path = model_path or (settings.siglip_model_path if settings.siglip_model_path else None)
-        
+        self.model_path = model_path or (
+            settings.siglip_model_path if settings.siglip_model_path else None
+        )
+
         # Usar GPU si está disponible
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Cargar processor y modelo preentrenado
         if self.model_path:
             self.processor = AutoProcessor.from_pretrained(self.model_path, local_files_only=True)
-            self.model = SiglipModel.from_pretrained(self.model_path, local_files_only=True).to(self.device).eval()
+            self.model = (
+                SiglipModel.from_pretrained(self.model_path, local_files_only=True)
+                .to(self.device)
+                .eval()
+            )
         else:
             self.processor = AutoProcessor.from_pretrained(self.model_name)
             self.model = SiglipModel.from_pretrained(self.model_name).to(self.device).eval()
 
-    def embed_image(self, images: List[Image.Image]) -> List[List[float]]:
+    def embed_image(self, images: list[Image.Image]) -> list[list[float]]:
         """Convierte una lista de imágenes en una lista de vectores embedding normalizados."""
         if not images:
             return []
 
-        all_vectors: List[List[float]] = []
+        all_vectors: list[list[float]] = []
         with torch.inference_mode():
             for i in range(0, len(images), self.image_batch_size):
                 chunk = images[i : i + self.image_batch_size]
@@ -82,8 +88,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
                 )
 
                 image_features = _output_to_tensor(
-                    self.model.get_image_features(**inputs),
-                    ["pooler_output", "image_embeds"],
+                    self.model.get_image_features(**inputs), ["pooler_output", "image_embeds"]
                 )
 
                 # Normalización L2 para similitud de coseno
@@ -93,7 +98,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
 
         return all_vectors
 
-    def embed_text(self, text: str) -> List[float]:
+    def embed_text(self, text: str) -> list[float]:
         """Convierte el texto de búsqueda en un vector en el mismo espacio vectorial."""
         if not text:
             raise ValueError("text no puede estar vacío")
@@ -111,8 +116,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
 
         with torch.inference_mode():
             text_features = _output_to_tensor(
-                self.model.get_text_features(**inputs),
-                ["pooler_output", "text_embeds"],
+                self.model.get_text_features(**inputs), ["pooler_output", "text_embeds"]
             )
             norms = text_features.norm(dim=1, keepdim=True).clamp(min=1e-12)
             text_features = text_features / norms
