@@ -36,14 +36,10 @@ limiter = Limiter(
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     """Handler personalizado para 429 Too Many Requests."""
     # RateLimitExceeded no tiene retry_after directamente, calcularlo
-    retry_after = 60  # default 60 segundos para límite por minuto
-    try:
-        limiter = request.app.state.limiter
-        key = get_client_id(request)
-        limit_item = limiter._default_limits[0][0].limit  # obtener el límite configurado
-        stats = limiter._limiter.get_window_stats(limit_item, key)
-        retry_after = max(1, int(stats.reset_time.timestamp() - time.time()))
-    except Exception:
+    # Ventana fija de 1 minuto alineada al reloj: el reset ocurre al siguiente minuto.
+    # Evita tocar el storage del limiter (riesgo de deadlock dentro del handler).
+    retry_after = 60 - (int(time.time()) % 60)
+    if retry_after <= 0:
         retry_after = 60
     return JSONResponse(
         status_code=429,
