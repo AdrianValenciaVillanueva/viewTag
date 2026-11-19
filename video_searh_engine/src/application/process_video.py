@@ -34,7 +34,7 @@ class ProcessVideoService:
 
         images = [f.image for f in frames]
         embeddings = self.embedder.embed_image(images)
-
+        self.repository.delete_by_video(resolved_name)  # Eliminar vectores previos del mismo video
         self.repository.save_vectors(
             video_name=resolved_name,
             frame_ids=[f.frame_id for f in frames],

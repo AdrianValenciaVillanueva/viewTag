@@ -53,3 +53,8 @@ class VectorRepositoryInterface(ABC):
             SearchPage con results, total, limit, offset
         """
         pass
+
+    @abstractmethod
+    def delete_by_video(self, video_name: str) -> None:
+        """Elimina todos los vectores asociados a un video específico."""
+        pass

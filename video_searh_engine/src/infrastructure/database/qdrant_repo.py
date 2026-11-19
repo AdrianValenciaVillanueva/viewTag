@@ -134,3 +134,14 @@ class QdrantVectorRepository(VectorRepositoryInterface):
             )
 
         return SearchPage(results=search_results, total=total, limit=limit, offset=offset)
+
+    def delete_by_video(self, video_name: str) -> None:
+        if not video_name:
+            raise ValueError("video_name no puede estar vacío")
+        self.client.delete(
+            collection_name=self.collection,
+            points_selector=Filter(
+                must=[FieldCondition(key="video_name", match=MatchValue(value=video_name))]
+            ),
+            wait=True,
+        )

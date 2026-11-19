@@ -42,6 +42,20 @@ class TestQdrantRepository:
                 wait=True,
             )
 
+    def delete_by_video(self, video_name):
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+        if not video_name:
+            raise ValueError("video_name no puede estar vacío")
+
+        self.client.delete(
+            collection_name=self.collection,
+            points_selector=Filter(
+                must=[FieldCondition(key="video_name", match=MatchValue(value=video_name))]
+            ),
+            wait=True,
+        )
+
     def search_similar(self, query_vector, limit=5, offset=0, video_name=None):
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
