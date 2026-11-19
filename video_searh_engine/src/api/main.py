@@ -1,8 +1,12 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from api.rate_limit import setup_rate_limiting
 from api.routes import router
@@ -41,6 +45,32 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Video Search Engine", lifespan=lifespan)
+
+# CORS (solo si hay orígenes explícitos; si no, same-origin)
+allowed_origins = [
+    origin.strip() for origin in settings.cors_allowed_origins.split(",") if origin.strip()
+]
+if allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+# Límite de tamaño de request
+class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > settings.max_request_size_mb * 1024 * 1024:
+            return Response(status_code=413, content="Request body too large")
+        return await call_next(request)
+
+
+app.add_middleware(RequestSizeLimitMiddleware)
+
 
 # Rate limiting
 setup_rate_limiting(app)

@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # API Keys (separadas por coma). Vacío = sin validación (modo anónimo).
     api_keys: str = ""
 
+    # CORS
+    cors_allowed_origins: str = ""  # separados por coma; vacío = solo mismo origen
+    max_request_size_mb: int = 100  # límite de tamaño de body en MB
+
 
 # Singleton instance
 settings = Settings()
