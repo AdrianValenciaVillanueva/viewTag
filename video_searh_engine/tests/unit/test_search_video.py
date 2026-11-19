@@ -1,6 +1,7 @@
 # Tests for SearchVideoService
 
 import pytest
+
 from application.search_video import SearchVideoService
 from domain.interfaces.repository import SearchPage
 

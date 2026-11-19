@@ -1,18 +1,18 @@
 from contextlib import asynccontextmanager
 
-from application.process_video import ProcessVideoService
-from application.search_video import SearchVideoService
-from config.settings import settings
 from fastapi import FastAPI, Response
-from infrastructure.database.qdrant_repo import QdrantVectorRepository
-from infrastructure.ia.siglip_embedder import SigLIPEmbedder
-from infrastructure.video.decord_extractor import DecordFrameExtractor
-from observability.logging import configure_logging, get_logger
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.rate_limit import setup_rate_limiting
 from api.routes import router
+from application.process_video import ProcessVideoService
+from application.search_video import SearchVideoService
+from config.settings import settings
+from infrastructure.database.qdrant_repo import QdrantVectorRepository
+from infrastructure.ia.siglip_embedder import SigLIPEmbedder
+from infrastructure.video.decord_extractor import DecordFrameExtractor
+from observability.logging import configure_logging, get_logger
 
 # Configurar logging estructurado al importar el módulo
 configure_logging(json_logs=True, log_level="INFO")

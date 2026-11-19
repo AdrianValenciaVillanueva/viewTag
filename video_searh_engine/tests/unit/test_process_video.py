@@ -1,6 +1,7 @@
 # Tests for ProcessVideoService
 
 import pytest
+
 from application.process_video import ProcessVideoService
 
 

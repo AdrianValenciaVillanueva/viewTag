@@ -43,9 +43,10 @@ class TestQdrantRepository:
             )
 
     def search_similar(self, query_vector, limit=5, offset=0, video_name=None):
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
         from domain.interfaces.repository import SearchPage
         from domain.models import SearchResult
-        from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         # Build optional filter
         query_filter = None

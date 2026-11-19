@@ -1,5 +1,6 @@
 # Integration tests for the full video search pipeline
 import pytest
+
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
 from domain.interfaces.repository import SearchPage

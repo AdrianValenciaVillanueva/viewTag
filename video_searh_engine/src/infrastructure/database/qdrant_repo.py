@@ -1,11 +1,6 @@
 # Concrete implementation for data persistence using Qdrant
 import uuid
 
-from config.settings import settings
-
-# modelo e interfaz
-from domain.interfaces.repository import SearchPage, VectorRepositoryInterface
-from domain.models import SearchResult
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -15,6 +10,12 @@ from qdrant_client.models import (
     PointStruct,
     VectorParams,
 )
+
+from config.settings import settings
+
+# modelo e interfaz
+from domain.interfaces.repository import SearchPage, VectorRepositoryInterface
+from domain.models import SearchResult
 
 
 class QdrantVectorRepository(VectorRepositoryInterface):

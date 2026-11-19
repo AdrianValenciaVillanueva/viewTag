@@ -1,12 +1,13 @@
 # src/api/rate_limit.py
 """Rate limiting configuration using slowapi."""
 
-from config.settings import settings
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+
+from config.settings import settings
 
 
 def get_client_id(request: Request) -> str:

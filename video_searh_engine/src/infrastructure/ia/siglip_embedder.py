@@ -1,10 +1,11 @@
 from typing import Any
 
 import torch
-from config.settings import settings
-from domain.interfaces.embedder import VectorEmbedderInterface
 from PIL import Image
 from transformers import AutoProcessor, SiglipModel
+
+from config.settings import settings
+from domain.interfaces.embedder import VectorEmbedderInterface
 
 
 def _move_to_device(inputs: Any, device: str) -> Any:
