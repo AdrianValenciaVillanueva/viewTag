@@ -1,6 +1,8 @@
 # src/api/rate_limit.py
 """Rate limiting configuration using slowapi."""
 
+import time
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
@@ -35,6 +37,14 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
     """Handler personalizado para 429 Too Many Requests."""
     # RateLimitExceeded no tiene retry_after directamente, calcularlo
     retry_after = 60  # default 60 segundos para límite por minuto
+    try:
+        limiter = request.app.state.limiter
+        key = get_client_id(request)
+        limit_item = limiter._default_limits[0][0].limit  # obtener el límite configurado
+        stats = limiter._limiter.get_window_stats(limit_item, key)
+        retry_after = max(1, int(stats.reset_time.timestamp() - time.time()))
+    except Exception:
+        retry_after = 60
     return JSONResponse(
         status_code=429,
         content={
