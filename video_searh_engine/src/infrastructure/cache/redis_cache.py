@@ -39,6 +39,22 @@ class EmbeddingCache(EmbeddingCacheInterface):
         except Exception:
             return None
 
+    def get_many(self, images_bytes: list[bytes], model_name: str) -> list[list[float] | None]:
+        if not self.enabled or self.client is None or not images_bytes:
+            return [None] * len(images_bytes)
+        try:
+            keys = [self._key(b, model_name) for b in images_bytes]
+            raws = self.client.mget(keys)
+            result: list[list[float] | None] = []
+            for raw in raws:
+                if raw is None:
+                    result.append(None)
+                else:
+                    result.append(json.loads(raw))
+            return result
+        except Exception:
+            return [None] * len(images_bytes)
+
     def set(self, image_bytes: bytes, model_name: str, vector: list[float]) -> None:
         """Store the embedding in cache."""
         if not self.enabled or self.client is None:

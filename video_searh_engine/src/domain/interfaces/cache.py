@@ -8,6 +8,11 @@ class EmbeddingCacheInterface(ABC):
         pass
 
     @abstractmethod
+    def get_many(self, images_bytes: list[bytes], model_name: str) -> list[list[float] | None]:
+        """Retrieve multiple embeddings in one round trip."""
+        pass
+
+    @abstractmethod
     def set(self, image_bytes: bytes, model_name: str, vector: list[float]) -> None:
         """Store the embedding in cache."""
         pass

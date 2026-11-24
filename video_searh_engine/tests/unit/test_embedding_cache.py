@@ -44,5 +44,18 @@ def test_cache_disabled_returns_none():
     settings.embedding_cache_enabled = True
 
 
+def test_cache_get_many_returns_hits_and_misses(fake_cache):
+    imgs = [b"img1", b"img2", b"img3"]
+    vecs = [[0.1], [0.2], [0.3]]
+    for img, v in zip(imgs, vecs, strict=True):
+        fake_cache.set(img, "model", v)
+
+    # All present
+    assert fake_cache.get_many(imgs, "model") == vecs
+    # Mixed: one present, one missing
+    result = fake_cache.get_many([b"img1", b"missing"], "model")
+    assert result == [[0.1], None]
+
+
 def test_cache_close_does_not_raise(fake_cache):
     fake_cache.close()  # no debe lanzar

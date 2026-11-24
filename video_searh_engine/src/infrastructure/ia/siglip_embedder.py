@@ -94,10 +94,10 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         all_vectors: list[list[float] | None] = [None] * len(images)
         to_compute: list[int] = []
 
-        # 1. Consultar cache
+        # 1. Consultar cache (batch con mget para reducir round trips a Redis)
         if self.cache is not None:
-            for i, img_bytes in enumerate(image_bytes_list):
-                cached = self.cache.get(img_bytes, self.model_name)
+            cached_vectors = self.cache.get_many(image_bytes_list, self.model_name)
+            for i, cached in enumerate(cached_vectors):
                 if cached is not None:
                     all_vectors[i] = cached
                 else:
