@@ -25,6 +25,7 @@ dependencies = [
     "prometheus_fastapi_instrumentator",
     "structlog",
     "python-json-logger>=1",
+    "redis>=5.0",
 ]
 
 [project.optional-dependencies]

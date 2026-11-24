@@ -13,6 +13,7 @@ from api.routes import router
 from application.process_video import ProcessVideoService
 from application.search_video import SearchVideoService
 from config.settings import settings
+from infrastructure.cache.redis_cache import EmbeddingCache
 from infrastructure.database.qdrant_repo import QdrantVectorRepository
 from infrastructure.ia.siglip_embedder import SigLIPEmbedder
 from infrastructure.video.decord_extractor import DecordFrameExtractor
@@ -26,15 +27,25 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    embedder = SigLIPEmbedder()
+    cache = EmbeddingCache() if settings.embedding_cache_enabled and settings.redis_url else None
+    embedder = SigLIPEmbedder(cache=cache)
     repository = QdrantVectorRepository()
     extractor = DecordFrameExtractor()
-    logger.info("startup", embedder_loaded=True, qdrant_connected=True)
+    logger.info(
+        "startup", embedder_loaded=True, qdrant_connected=True, cache_enabled=cache is not None
+    )
     app.state.process = ProcessVideoService(extractor, embedder, repository)
     app.state.search = SearchVideoService(embedder, repository)
+    app.state.cache = cache
     yield
     # Shutdown graceful
     logger.info("shutdown_started")
+    if cache is not None:
+        try:
+            cache.close()
+            logger.info("embedding_cache_closed")
+        except Exception as e:
+            logger.warning("embedding_cache_close_failed", error=str(e))
     if hasattr(repository, "client") and hasattr(repository.client, "close"):
         try:
             repository.client.close()

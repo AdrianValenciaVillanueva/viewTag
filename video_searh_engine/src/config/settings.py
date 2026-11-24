@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     cors_allowed_origins: str = ""  # separados por coma; vacío = solo mismo origen
     max_request_size_mb: int = 100  # límite de tamaño de body en MB
 
+    # cache redis
+    redis_url: str = ""
+    embedding_cache_ttl_seconds: int = 86400
+    embedding_cache_enabled: bool = True
+
 
 # Singleton instance
 settings = Settings()

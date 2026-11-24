@@ -1,3 +1,4 @@
+import io
 from typing import Any
 
 import torch
@@ -5,6 +6,7 @@ from PIL import Image
 from transformers import AutoProcessor, SiglipModel
 
 from config.settings import settings
+from domain.interfaces.cache import EmbeddingCacheInterface
 from domain.interfaces.embedder import VectorEmbedderInterface
 
 
@@ -51,6 +53,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         image_batch_size: int | None = None,
         text_max_length: int | None = None,
         model_path: str | None = None,
+        cache: EmbeddingCacheInterface | None = None,
     ):
         self.model_name = model_name or settings.siglip_model_name
         self.image_batch_size = image_batch_size or settings.image_batch_size
@@ -59,6 +62,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         self.model_path = model_path or (
             settings.siglip_model_path if settings.siglip_model_path else None
         )
+        self.cache = cache
 
         # Usar GPU si está disponible
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -80,6 +84,40 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         if not images:
             return []
 
+        # Serializar cada PIL Image a bytes para usar como clave de cache
+        image_bytes_list: list[bytes] = []
+        for img in images:
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=95)
+            image_bytes_list.append(buf.getvalue())
+
+        all_vectors: list[list[float] | None] = [None] * len(images)
+        to_compute: list[int] = []
+
+        # 1. Consultar cache
+        if self.cache is not None:
+            for i, img_bytes in enumerate(image_bytes_list):
+                cached = self.cache.get(img_bytes, self.model_name)
+                if cached is not None:
+                    all_vectors[i] = cached
+                else:
+                    to_compute.append(i)
+        else:
+            to_compute = list(range(len(images)))
+
+        # 2. Calcular solo los que faltan
+        if to_compute:
+            chunk_images = [images[i] for i in to_compute]
+            computed = self._compute_embeddings(chunk_images)
+            for idx, vec in zip(to_compute, computed, strict=True):
+                all_vectors[idx] = vec
+                if self.cache is not None:
+                    self.cache.set(image_bytes_list[idx], self.model_name, vec)
+
+        return [v for v in all_vectors if v is not None]
+
+    def _compute_embeddings(self, images: list[Image.Image]) -> list[list[float]]:
+        """Calcula embeddings en lotes (lógica original de batching)."""
         all_vectors: list[list[float]] = []
         with torch.inference_mode():
             for i in range(0, len(images), self.image_batch_size):
