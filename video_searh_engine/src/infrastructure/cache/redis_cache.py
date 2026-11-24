@@ -40,6 +40,7 @@ class EmbeddingCache(EmbeddingCacheInterface):
             return None
 
     def get_many(self, images_bytes: list[bytes], model_name: str) -> list[list[float] | None]:
+        """Retrieve multiple embeddings in one round trip."""
         if not self.enabled or self.client is None or not images_bytes:
             return [None] * len(images_bytes)
         try:
@@ -64,7 +65,7 @@ class EmbeddingCache(EmbeddingCacheInterface):
         except Exception:
             pass
 
-    def close(self):
+    def close(self) -> None:
         """Close the Redis connection."""
         if self.client is not None:
             try:
