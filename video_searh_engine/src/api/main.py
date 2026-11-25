@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
     logger.info("shutdown_started")
     if cache is not None:
         try:
-            cache.close()
+            await cache.close()
             logger.info("embedding_cache_closed")
         except Exception as e:
             logger.warning("embedding_cache_close_failed", error=str(e))

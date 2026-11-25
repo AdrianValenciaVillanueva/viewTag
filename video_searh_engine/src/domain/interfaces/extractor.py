@@ -7,7 +7,7 @@ from domain.models import Frame
 class FrameExtractorInterface(ABC):
     # contrato a cumplir
     @abstractmethod
-    def extract(self, video_path: str) -> list[Frame]:
+    async def extract(self, video_path: str) -> list[Frame]:
         """
         extraer fotogramas de un archivo de video
 

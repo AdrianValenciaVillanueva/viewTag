@@ -17,7 +17,7 @@ class ProcessVideoService:
         self.embedder = embedder
         self.repository = repository
 
-    def execute(self, video_source: str, video_name: str | None = None) -> dict[str, object]:
+    async def execute(self, video_source: str, video_name: str | None = None) -> dict[str, object]:
         # Logic to extract, embed, and save video data
         if not video_source or not video_source.strip():
             raise ValueError("video_source cannot be empty")
@@ -28,14 +28,16 @@ class ProcessVideoService:
         if not resolved_name or not resolved_name.strip():
             raise ValueError("video_name no puede estar vacío")
 
-        frames = self.extractor.extract(video_source)
+        frames = await self.extractor.extract(video_source)
         if not frames:
             return {"video_name": resolved_name, "frames_processed": 0, "embeddings_saved": 0}
 
         images = [f.image for f in frames]
-        embeddings = self.embedder.embed_image(images)
-        self.repository.delete_by_video(resolved_name)  # Eliminar vectores previos del mismo video
-        self.repository.save_vectors(
+        embeddings = await self.embedder.embed_image(images)
+        await self.repository.delete_by_video(
+            resolved_name
+        )  # Eliminar vectores previos del mismo video
+        await self.repository.save_vectors(
             video_name=resolved_name,
             frame_ids=[f.frame_id for f in frames],
             timestamps=[f.timestamp_seconds for f in frames],

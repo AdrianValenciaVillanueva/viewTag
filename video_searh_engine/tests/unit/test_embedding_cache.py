@@ -16,46 +16,50 @@ def fake_cache():
     settings.redis_url = ""
 
 
-def test_cache_miss_returns_none(fake_cache):
-    assert fake_cache.get(b"fake-image", "model") is None
+@pytest.mark.asyncio
+async def test_cache_miss_returns_none(fake_cache):
+    assert await fake_cache.get(b"fake-image", "model") is None
 
 
-def test_cache_set_then_get_returns_vector(fake_cache):
+@pytest.mark.asyncio
+async def test_cache_set_then_get_returns_vector(fake_cache):
     img = b"fake-image"
     vec = [0.1, 0.2, 0.3]
-    fake_cache.set(img, "model", vec)
-    assert fake_cache.get(img, "model") == vec
+    await fake_cache.set(img, "model", vec)
+    assert await fake_cache.get(img, "model") == vec
 
 
-def test_cache_different_model_is_miss(fake_cache):
+@pytest.mark.asyncio
+async def test_cache_different_model_is_miss(fake_cache):
     img = b"fake-image"
     vec = [0.1, 0.2, 0.3]
-    fake_cache.set(img, "model-a", vec)
-    assert fake_cache.get(img, "model-b") is None
+    await fake_cache.set(img, "model-a", vec)
+    assert await fake_cache.get(img, "model-b") is None
 
 
-def test_cache_disabled_returns_none():
+@pytest.mark.asyncio
+async def test_cache_disabled_returns_none():
     settings.embedding_cache_enabled = False
     settings.redis_url = ""
     cache = EmbeddingCache()
-    assert cache.get(b"img", "model") is None
-    cache.set(b"img", "model", [1.0])
-    assert cache.get(b"img", "model") is None
+    assert await cache.get(b"img", "model") is None
+    await cache.set(b"img", "model", [1.0])
+    assert await cache.get(b"img", "model") is None
     settings.embedding_cache_enabled = True
 
 
-def test_cache_get_many_returns_hits_and_misses(fake_cache):
+@pytest.mark.asyncio
+async def test_cache_get_many_returns_hits_and_misses(fake_cache):
     imgs = [b"img1", b"img2", b"img3"]
     vecs = [[0.1], [0.2], [0.3]]
     for img, v in zip(imgs, vecs, strict=True):
-        fake_cache.set(img, "model", v)
+        await fake_cache.set(img, "model", v)
 
-    # All present
-    assert fake_cache.get_many(imgs, "model") == vecs
-    # Mixed: one present, one missing
-    result = fake_cache.get_many([b"img1", b"missing"], "model")
+    assert await fake_cache.get_many(imgs, "model") == vecs
+    result = await fake_cache.get_many([b"img1", b"missing"], "model")
     assert result == [[0.1], None]
 
 
-def test_cache_close_does_not_raise(fake_cache):
-    fake_cache.close()  # no debe lanzar
+@pytest.mark.asyncio
+async def test_cache_close_does_not_raise(fake_cache):
+    await fake_cache.close()  # no debe lanzar

@@ -1,3 +1,4 @@
+import asyncio
 import io
 from typing import Any
 
@@ -79,7 +80,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
             self.processor = AutoProcessor.from_pretrained(self.model_name)
             self.model = SiglipModel.from_pretrained(self.model_name).to(self.device).eval()
 
-    def embed_image(self, images: list[Image.Image]) -> list[list[float]]:
+    async def embed_image(self, images: list[Image.Image]) -> list[list[float]]:
         """Convierte una lista de imágenes en una lista de vectores embedding normalizados."""
         if not images:
             return []
@@ -96,7 +97,7 @@ class SigLIPEmbedder(VectorEmbedderInterface):
 
         # 1. Consultar cache (batch con mget para reducir round trips a Redis)
         if self.cache is not None:
-            cached_vectors = self.cache.get_many(image_bytes_list, self.model_name)
+            cached_vectors = await self.cache.get_many(image_bytes_list, self.model_name)
             for i, cached in enumerate(cached_vectors):
                 if cached is not None:
                     all_vectors[i] = cached
@@ -108,56 +109,55 @@ class SigLIPEmbedder(VectorEmbedderInterface):
         # 2. Calcular solo los que faltan
         if to_compute:
             chunk_images = [images[i] for i in to_compute]
-            computed = self._compute_embeddings(chunk_images)
+            computed = await self._compute_embeddings(chunk_images)
             for idx, vec in zip(to_compute, computed, strict=True):
                 all_vectors[idx] = vec
                 if self.cache is not None:
-                    self.cache.set(image_bytes_list[idx], self.model_name, vec)
+                    await self.cache.set(image_bytes_list[idx], self.model_name, vec)
 
         return [v for v in all_vectors if v is not None]
 
-    def _compute_embeddings(self, images: list[Image.Image]) -> list[list[float]]:
-        """Calcula embeddings en lotes (lógica original de batching)."""
+    async def _compute_embeddings(self, images: list[Image.Image]) -> list[list[float]]:
+        """Calcula embeddings en lotes."""
+
+        def _process_batch(chunk: list[Image.Image]) -> list[list[float]]:
+            inputs = _move_to_device(self.processor(images=chunk, return_tensors="pt"), self.device)
+            image_features = _output_to_tensor(
+                self.model.get_image_features(**inputs), ["pooler_output", "image_embeds"]
+            )
+            norms = image_features.norm(dim=1, keepdim=True).clamp(min=1e-12)
+            image_features = image_features / norms
+            return image_features.cpu().tolist()
+
         all_vectors: list[list[float]] = []
         with torch.inference_mode():
             for i in range(0, len(images), self.image_batch_size):
                 chunk = images[i : i + self.image_batch_size]
-                inputs = _move_to_device(
-                    self.processor(images=chunk, return_tensors="pt"), self.device
-                )
-
-                image_features = _output_to_tensor(
-                    self.model.get_image_features(**inputs), ["pooler_output", "image_embeds"]
-                )
-
-                # Normalización L2 para similitud de coseno
-                norms = image_features.norm(dim=1, keepdim=True).clamp(min=1e-12)
-                image_features = image_features / norms
-                all_vectors.extend(image_features.cpu().tolist())
-
+                vectors = await asyncio.to_thread(_process_batch, chunk)
+                all_vectors.extend(vectors)
         return all_vectors
 
-    def embed_text(self, text: str) -> list[float]:
+    async def embed_text(self, text: str) -> list[float]:
         """Convierte el texto de búsqueda en un vector en el mismo espacio vectorial."""
         if not text:
             raise ValueError("text no puede estar vacío")
 
-        inputs = _move_to_device(
-            self.processor(
-                text=[text],
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=self.text_max_length,
-            ),
-            self.device,
-        )
-
-        with torch.inference_mode():
+        def _process_text() -> list[float]:
+            inputs = _move_to_device(
+                self.processor(
+                    text=[text],
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=self.text_max_length,
+                ),
+                self.device,
+            )
             text_features = _output_to_tensor(
                 self.model.get_text_features(**inputs), ["pooler_output", "text_embeds"]
             )
             norms = text_features.norm(dim=1, keepdim=True).clamp(min=1e-12)
             text_features = text_features / norms
-
             return text_features.squeeze(0).cpu().tolist()
+
+        return await asyncio.to_thread(_process_text)

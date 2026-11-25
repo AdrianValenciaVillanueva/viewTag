@@ -22,7 +22,7 @@ class SearchPage:
 
 class VectorRepositoryInterface(ABC):
     @abstractmethod
-    def save_vectors(
+    async def save_vectors(
         self,
         video_name: str,
         frame_ids: list[str],
@@ -33,7 +33,7 @@ class VectorRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def search_similar(
+    async def search_similar(
         self,
         query_vector: list[float],
         limit: int = 5,
@@ -55,6 +55,6 @@ class VectorRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def delete_by_video(self, video_name: str) -> None:
+    async def delete_by_video(self, video_name: str) -> None:
         """Elimina todos los vectores asociados a un video específico."""
         pass

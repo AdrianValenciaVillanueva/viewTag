@@ -1,4 +1,5 @@
 # Implementación concreta de extracción de frames usando Decord.
+import asyncio
 import io
 import os
 
@@ -33,7 +34,7 @@ class DecordFrameExtractor(FrameExtractorInterface):
         if self.frame_batch_size <= 0:
             raise ValueError(f"frame_batch_size debe ser > 0, recibido: {self.frame_batch_size}")
 
-    def extract(self, video_path: str) -> list[Frame]:
+    async def extract(self, video_path: str) -> list[Frame]:
 
         if not video_path:
             raise ValueError("video_path no puede estar vacío")
@@ -42,15 +43,15 @@ class DecordFrameExtractor(FrameExtractorInterface):
 
         reader = None
         try:
-            # Abrir el lector de video en CPU.
-            reader = VideoReader(video_path, ctx=cpu(0))
+            # Abrir el lector de video.
+            reader = await asyncio.to_thread(VideoReader, video_path, ctx=cpu(0))
 
             # Evitar división entre 0
-            native_fps = reader.get_avg_fps()
+            native_fps = await asyncio.to_thread(reader.get_avg_fps)
             if native_fps is None or native_fps <= 0:
                 raise ValueError(f"FPS inválido ({native_fps}) en video: {video_path}")
 
-            total_frames = len(reader)
+            total_frames = await asyncio.to_thread(lambda: len(reader))
 
             # Validar que haya frames para extraer.
             if total_frames <= 0:
@@ -68,21 +69,16 @@ class DecordFrameExtractor(FrameExtractorInterface):
             # get_batch() devuelve un array numpy con todos los frames pedidos,
             for start in range(0, len(frame_indices), self.frame_batch_size):
                 chunk_indices = frame_indices[start : start + self.frame_batch_size]
-                batch_frames = reader.get_batch(chunk_indices).asnumpy()
+                batch_frames = await asyncio.to_thread(reader.get_batch, chunk_indices)
+                batch_frames = batch_frames.asnumpy()  # Convertir a numpy array para PIL
 
                 # Convertir cada frame al modelo Frame.
                 # Se comprime a JPEG porque Frame.image_bytes promete bytes
                 for idx, frame_arr in zip(chunk_indices, batch_frames, strict=True):
-                    # El timestamp es la posición del frame dividida por los fps
-                    # reales del video, redondeado a centésimas para el payload.
                     timestamp = idx / native_fps
 
-                    image = Image.fromarray(frame_arr)
-                    buffer = io.BytesIO()
-                    image.save(buffer, format="JPEG", quality=95)
-                    image_bytes = buffer.getvalue()
-
-                    # NOTA: frame_id no incluye el nombre del video a propósito
+                    image_bytes = await asyncio.to_thread(self._encode_frame, frame_arr)
+                    # frame_id no incluye el nombre del video a propósito
                     # para mantener IDs estables; la unicidad entre videos la da
                     # Qdrant con uuid5(f"{video_name}_{frame_id}").
                     frame_entity = Frame(
@@ -91,10 +87,18 @@ class DecordFrameExtractor(FrameExtractorInterface):
                         image_bytes=image_bytes,  # JPEG comprimido
                         path=video_path,
                     )
-
                     extracted_frames.append(frame_entity)
 
             return extracted_frames
         finally:
             if reader is not None:
                 del reader
+
+    def _encode_frame(self, frame_arr) -> bytes:
+        """
+        helper sincrono para comprimir un frame a JPEG
+        """
+        image = Image.fromarray(frame_arr)
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=95)
+        return buffer.getvalue()

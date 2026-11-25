@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 
@@ -27,25 +28,27 @@ class EmbeddingCache(EmbeddingCacheInterface):
         h = hashlib.sha256(image_bytes).hexdigest()
         return f"emb:{model_name}:{h}"
 
-    def get(self, image_bytes: bytes, model_name: str) -> list[float] | None:
+    async def get(self, image_bytes: bytes, model_name: str) -> list[float] | None:
         """Retrieve the embedding from cache if available."""
         if not self.enabled or self.client is None:
             return None
         try:
-            raw = self.client.get(self._key(image_bytes, model_name))
+            raw = await asyncio.to_thread(self.client.get, self._key(image_bytes, model_name))
             if raw is None:
                 return None
             return json.loads(raw)
         except Exception:
             return None
 
-    def get_many(self, images_bytes: list[bytes], model_name: str) -> list[list[float] | None]:
+    async def get_many(
+        self, images_bytes: list[bytes], model_name: str
+    ) -> list[list[float] | None]:
         """Retrieve multiple embeddings in one round trip."""
         if not self.enabled or self.client is None or not images_bytes:
             return [None] * len(images_bytes)
         try:
             keys = [self._key(b, model_name) for b in images_bytes]
-            raws = self.client.mget(keys)
+            raws = await asyncio.to_thread(self.client.mget, keys)
             result: list[list[float] | None] = []
             for raw in raws:
                 if raw is None:
@@ -56,19 +59,21 @@ class EmbeddingCache(EmbeddingCacheInterface):
         except Exception:
             return [None] * len(images_bytes)
 
-    def set(self, image_bytes: bytes, model_name: str, vector: list[float]) -> None:
+    async def set(self, image_bytes: bytes, model_name: str, vector: list[float]) -> None:
         """Store the embedding in cache."""
         if not self.enabled or self.client is None:
             return
         try:
-            self.client.setex(self._key(image_bytes, model_name), self.ttl, json.dumps(vector))
+            await asyncio.to_thread(
+                self.client.setex, self._key(image_bytes, model_name), self.ttl, json.dumps(vector)
+            )
         except Exception:
             pass
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close the Redis connection."""
         if self.client is not None:
             try:
-                self.client.close()
+                await asyncio.to_thread(self.client.close)
             except Exception:
                 pass

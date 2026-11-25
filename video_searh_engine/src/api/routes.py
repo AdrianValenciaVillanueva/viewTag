@@ -57,13 +57,13 @@ def get_search_service(request: Request) -> SearchVideoService:
     "/process-video", response_model=ProcessResponse, dependencies=[Depends(validate_api_key)]
 )
 @limiter.limit("10/minute")
-def process_video(
+async def process_video(
     request: Request,
     body: ProcessRequest,
     service: ProcessVideoService = Depends(get_process_service),
 ):
     try:
-        return service.execute(body.video_path, body.video_name)
+        return await service.execute(body.video_path, body.video_name)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
@@ -72,7 +72,7 @@ def process_video(
 
 @router.get("/search", response_model=SearchPageResponse, dependencies=[Depends(validate_api_key)])
 @limiter.limit("30/minute")
-def search_video(
+async def search_video(
     request: Request,
     q: str = Query(min_length=1, description="Texto a buscar"),
     limit: int = Query(
@@ -88,7 +88,7 @@ def search_video(
     service: SearchVideoService = Depends(get_search_service),
 ):
     try:
-        page = service.execute(q, limit=limit, offset=offset, video_name=video_name)
+        page = await service.execute(q, limit=limit, offset=offset, video_name=video_name)
         return SearchPageResponse(
             results=[
                 SearchHit(

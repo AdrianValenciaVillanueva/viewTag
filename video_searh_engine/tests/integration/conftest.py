@@ -23,7 +23,7 @@ class TestQdrantRepository:
                 vectors_config=VectorParams(size=768, distance=Distance.COSINE),
             )
 
-    def save_vectors(self, video_name, frame_ids, timestamps, vectors):
+    async def save_vectors(self, video_name, frame_ids, timestamps, vectors):
         if not (len(frame_ids) == len(timestamps) == len(vectors)):
             raise ValueError("Longitudes no coinciden")
         if not vectors:
@@ -42,7 +42,7 @@ class TestQdrantRepository:
                 wait=True,
             )
 
-    def delete_by_video(self, video_name):
+    async def delete_by_video(self, video_name):
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         if not video_name:
@@ -56,7 +56,7 @@ class TestQdrantRepository:
             wait=True,
         )
 
-    def search_similar(self, query_vector, limit=5, offset=0, video_name=None):
+    async def search_similar(self, query_vector, limit=5, offset=0, video_name=None):
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         from domain.interfaces.repository import SearchPage

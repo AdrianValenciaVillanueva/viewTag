@@ -1,4 +1,5 @@
 # Concrete implementation for data persistence using Qdrant
+import asyncio
 import uuid
 
 from qdrant_client import QdrantClient
@@ -47,7 +48,7 @@ class QdrantVectorRepository(VectorRepositoryInterface):
             )
 
     # Guardar vectores en la base de datos
-    def save_vectors(
+    async def save_vectors(
         self,
         video_name: str,
         frame_ids: list[str],
@@ -76,14 +77,15 @@ class QdrantVectorRepository(VectorRepositoryInterface):
             points.append(PointStruct(id=point_id, vector=vec, payload=payload))
 
         for i in range(0, len(points), self.upsert_batch_size):
-            self.client.upsert(
+            await asyncio.to_thread(
+                self.client.upsert,
                 collection_name=self.collection,
                 points=points[i : i + self.upsert_batch_size],
                 wait=True,
             )
 
     # Buscar vectores similares con paginación y filtro opcional
-    def search_similar(
+    async def search_similar(
         self,
         query_vector: list[float],
         limit: int = 5,
@@ -106,21 +108,27 @@ class QdrantVectorRepository(VectorRepositoryInterface):
 
         # Obtener total de coincidencias (para paginación)
         # Usamos count con el mismo filtro
-        count_result = self.client.count(
-            collection_name=self.collection, count_filter=query_filter, exact=True
+        count_result = await asyncio.to_thread(
+            self.client.count,
+            collection_name=self.collection,
+            count_filter=query_filter,
+            exact=True,
         )
+
         total = count_result.count
 
         # Buscar con paginación
         # Qdrant usa offset + limit
-        results = self.client.query_points(
-            collection_name=self.collection,
-            query=query_vector,
-            query_filter=query_filter,
-            limit=limit,
-            offset=offset,
-        ).points
+        def _query():
+            return self.client.query_points(
+                collection_name=self.collection,
+                query=query_vector,
+                query_filter=query_filter,
+                limit=limit,
+                offset=offset,
+            ).points
 
+        results = await asyncio.to_thread(_query)
         search_results: list[SearchResult] = []
         for res in results:
             payload = res.payload or {}
@@ -135,10 +143,11 @@ class QdrantVectorRepository(VectorRepositoryInterface):
 
         return SearchPage(results=search_results, total=total, limit=limit, offset=offset)
 
-    def delete_by_video(self, video_name: str) -> None:
+    async def delete_by_video(self, video_name: str) -> None:
         if not video_name:
             raise ValueError("video_name no puede estar vacío")
-        self.client.delete(
+        await asyncio.to_thread(
+            self.client.delete,
             collection_name=self.collection,
             points_selector=Filter(
                 must=[FieldCondition(key="video_name", match=MatchValue(value=video_name))]
