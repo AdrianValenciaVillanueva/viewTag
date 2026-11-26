@@ -19,6 +19,26 @@ class ProcessResponse(BaseModel):
     embeddings_saved: int
 
 
+class BatchProcessItem(BaseModel):
+    video_path: str
+    status: str  # "ok" | "error"
+    result: ProcessResponse | None = None
+    error: str | None = None
+
+
+class BatchProcessRequest(BaseModel):
+    videos: list[ProcessRequest] = Field(
+        min_length=1, max_length=settings.max_batch_size, description="Lista de videos a procesar"
+    )
+
+
+class BatchProcessResponse(BaseModel):
+    results: list[BatchProcessItem]
+    total: int
+    succeeded: int
+    failed: int
+
+
 class SearchHit(BaseModel):
     frame_id: str
     video_name: str
@@ -68,6 +88,38 @@ async def process_video(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post(
+    "/process-videos", response_model=BatchProcessResponse, dependencies=[Depends(validate_api_key)]
+)
+@limiter.limit("5/minute")
+async def process_videos(
+    request: Request,
+    body: BatchProcessRequest,
+    service: ProcessVideoService = Depends(get_process_service),
+):
+    results: list[BatchProcessItem] = []
+    succeeded = 0
+    failed = 0
+    for video in body.videos:
+        try:
+            result = await service.execute(video.video_path, video.video_name)
+            results.append(
+                BatchProcessItem(
+                    video_path=video.video_path, status="ok", result=ProcessResponse(**result)
+                )
+            )
+            succeeded += 1
+        except Exception as e:
+            results.append(
+                BatchProcessItem(video_path=video.video_path, status="error", error=str(e))
+            )
+            failed += 1
+
+    return BatchProcessResponse(
+        results=results, total=len(body.videos), succeeded=succeeded, failed=failed
+    )
 
 
 @router.get("/search", response_model=SearchPageResponse, dependencies=[Depends(validate_api_key)])

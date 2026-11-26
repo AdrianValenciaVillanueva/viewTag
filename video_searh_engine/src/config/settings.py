@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     embedding_cache_ttl_seconds: int = 86400
     embedding_cache_enabled: bool = True
 
+    # batchprocessing
+    max_batch_size: int = 10
+
 
 # Singleton instance
 settings = Settings()
